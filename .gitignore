@@ -3,3 +3,4 @@ __pycache__/
 # Régénérables via "python -m ygo.importer"
 data/
 ~$*.xlsx
+static/cards/

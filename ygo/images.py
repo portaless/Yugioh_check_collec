@@ -1,13 +1,17 @@
-"""Cache local des images (YGOPRODeck demande de ne pas les charger directement depuis leur site)."""
+"""Cache local des images (YGOPRODeck demande de ne pas les charger directement depuis leur site).
+
+Les images sont servies en fichiers statiques par Streamlit (static/ → app/static/) : le navigateur
+les garde en cache, au lieu de les recevoir à nouveau à chaque interaction.
+"""
 import requests
 
-from .db import DATA_DIR
+from .db import ROOT
 
-IMG_DIR = DATA_DIR / "images" / "hd"
+IMG_DIR = ROOT / "static" / "cards"
 
 
-def image_path(card_id: int, url: str):
-    """Image pleine résolution (421×614) ; le catalogue stocke l'URL de la miniature."""
+def image_src(card_id: int, url: str) -> str | None:
+    """URL relative de l'image pleine résolution (421×614) ; le catalogue stocke l'URL de la miniature."""
     IMG_DIR.mkdir(parents=True, exist_ok=True)
     path = IMG_DIR / f"{card_id}.jpg"
     if not path.exists():
@@ -17,4 +21,4 @@ def image_path(card_id: int, url: str):
             path.write_bytes(r.content)
         except requests.RequestException:
             return None
-    return path
+    return f"app/static/cards/{card_id}.jpg"

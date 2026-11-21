@@ -1,17 +1,36 @@
 """IHM Yu-Gi-Oh! : collection, constructeur de deck, analyse.   Lancer :  streamlit run app.py"""
 import json
+from html import escape
 
 import pandas as pd
 import streamlit as st
+from rapidfuzz import fuzz, process
 
 from ygo import analysis as A
 from ygo import builds, importer
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, ZONES_REV, tr
-from ygo.images import image_path
+from ygo.images import image_src
 from ygo.importer import CORRECTIONS_PATH, normalize
 
 st.set_page_config(page_title="Yu-Gi-Oh! – Ma collection", page_icon="🃏", layout="wide")
+
+# Galerie : un bouton transparent recouvre chaque vignette, le clic sur l'image ouvre la fiche.
+# Fiche : texte d'effet et caractéristiques en grand à côté de l'image.
+st.html("""<style>
+div[class*="st-key-tile_"] { position: relative; }
+div[class*="st-key-tile_"] .stElementContainer:has(.stButton) { position: absolute; inset: 0; z-index: 2; margin: 0; }
+div[class*="st-key-tile_"] .stButton, div[class*="st-key-tile_"] .stButton button {
+    width: 100%; height: 100%; opacity: 0; cursor: zoom-in; }
+.card-img { width: 100%; display: block; border-radius: 6px; }
+div[class*="st-key-tile_"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
+div[class*="st-key-tile_"]:hover img { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.card-facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; font-size: 1.05rem; margin: .5rem 0 1rem; }
+.card-facts dt { opacity: .65; }
+.card-facts dd { margin: 0; font-weight: 600; }
+.card-effect { font-size: 1.12rem; line-height: 1.6; padding: .9rem 1.1rem; border-radius: 8px;
+    background: rgba(128,128,128,.12); white-space: pre-line; }
+</style>""")
 
 
 @st.cache_resource
@@ -23,7 +42,6 @@ con = get_con()
 
 CATEGORY_LABELS = {"spell": "Magie", "trap": "Piège"}
 EXTRA_LABELS = {"fusion": "Fusion", "synchro": "Synchro", "xyz": "Xyz", "link": "Lien"}
-PAGE_SIZE = 24
 
 
 def category(frame: str) -> str:
@@ -66,36 +84,40 @@ def search(df: pd.DataFrame, text: str) -> pd.DataFrame:
 
 # --------------------------------------------------------------------------- fiche et galerie
 
-def show_card(c, image_width: int = 340):
-    left, right = st.columns([2, 3])
-    path = image_path(int(c["id"]), c["image_url"])
-    if path:
-        left.image(str(path), width=image_width)
+def card_img(container, c, max_width: str = "100%"):
+    src = image_src(int(c["id"]), c["image_url"])
+    if src:
+        container.html(f"<img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}' "
+                       f"style='max-width:{max_width}'>")
+
+
+def show_card(c):
+    left, right = st.columns([2, 3], gap="large")
+    card_img(left, c)
     right.subheader(c["nom"])
-    facts = [c["catégorie"], c["type_fr"], c["attribut"]]
+    facts = {"Catégorie": c["catégorie"], "Type": c["type_fr"], "Attribut": c["attribut"]}
     if pd.notna(c["level"]):
-        facts.append(f"{'Rang' if 'xyz' in c['frame_type'] else 'Niveau'} {int(c['level'])}")
+        facts["Rang" if "xyz" in c["frame_type"] else "Niveau"] = "★" * int(c["level"]) + f"  ({int(c['level'])})"
     if pd.notna(c["linkval"]):
-        facts.append(f"Lien {int(c['linkval'])}")
+        facts["Lien"] = int(c["linkval"])
     if pd.notna(c["scale"]):
-        facts.append(f"Échelle {int(c['scale'])}")
+        facts["Échelle Pendule"] = int(c["scale"])
     if pd.notna(c["atk"]):
-        facts.append(f"ATK {int(c['atk'])} / DEF {'-' if pd.isna(c['def']) else int(c['def'])}")
-    right.write(" · ".join(str(f) for f in facts if f))
-    tags = [f"En stock : **{int(c['owned'])}**"]
-    if c["archétype"]:
-        tags.append(f"Archétype : {c['archétype']}")
-    if c["banlist"]:
-        tags.append(f"Banlist TCG : :red[{c['banlist']}]")
+        facts["ATK / DEF"] = f"{int(c['atk'])} / {'-' if pd.isna(c['def']) else int(c['def'])}"
+    facts["Archétype"] = c["archétype"]
+    facts["Banlist TCG"] = c["banlist"] or "Illimitée"
+    facts["En stock"] = int(c["owned"])
     if pd.notna(c["price_cm"]):
-        tags.append(f"Cardmarket ≈ {c['price_cm']:.2f} €")
-    right.markdown(" · ".join(tags))
-    if c["desc_fr"]:
-        right.write(c["desc_fr"])
-    else:
+        facts["Cardmarket"] = f"≈ {c['price_cm']:.2f} €"
+    items = "".join(f"<dt>{k}</dt><dd>{escape(str(v))}</dd>" for k, v in facts.items() if v not in ("", None))
+    right.html(f"<dl class='card-facts'>{items}</dl>")
+    if pd.isna(c["desc_fr"]):
         right.caption("Pas encore de texte officiel en français pour cette carte, voici le texte anglais :")
-        right.write(c["desc_en"])
-    right.caption(f"Code : {c['id']}")
+    right.html(f"<div class='card-effect'>{escape(effect_text(c))}</div>")
+
+
+def effect_text(c) -> str:
+    return c["desc_en"] if pd.isna(c["desc_fr"]) else c["desc_fr"]
 
 
 @st.dialog("Fiche de la carte", width="large")
@@ -118,31 +140,30 @@ def open_card(ids: list[int], pos: int):
     card_dialog()
 
 
-def gallery(df: pd.DataFrame, key: str, per_row: int = 6, qty_col: str | None = None, paginate: bool = True):
-    """Grille d'images ; un clic sur « Voir » ouvre la fiche, navigable avec Précédente/Suivante."""
+def cards_gallery(items: list[tuple[int, str]], key: str, per_row: int = 6):
+    """Galerie à partir de (code carte, badge), dans l'ordre donné."""
+    df = catalog()
+    view = df.set_index("id").loc[[i for i, _ in items]].reset_index()
+    gallery(view.assign(badge=[b for _, b in items]), key, per_row)
+
+
+def gallery(df: pd.DataFrame, key: str, per_row: int = 6):
+    """Grille d'images ; un clic sur une image ouvre la fiche, navigable avec Précédente/Suivante.
+    Colonne optionnelle 'badge' : texte affiché après le nom (×2, +1…)."""
     if df.empty:
         st.caption("Aucune carte.")
         return
     ids = [int(i) for i in df["id"]]
-    start = 0
-    if paginate and len(df) > PAGE_SIZE:
-        pages = (len(df) - 1) // PAGE_SIZE + 1
-        page = st.number_input(f"Page (sur {pages})", 1, pages, 1, key=f"{key}_page")
-        start = (page - 1) * PAGE_SIZE
-        st.caption(f"Cartes {start + 1} à {min(start + PAGE_SIZE, len(df))} sur {len(df)}")
-    rows = df.iloc[start:start + PAGE_SIZE] if paginate else df
-    records = rows.to_dict("records")
+    records = df.to_dict("records")
     for i in range(0, len(records), per_row):
         cols = st.columns(per_row)
         for j, (col, c) in enumerate(zip(cols, records[i:i + per_row])):
-            with col:
-                path = image_path(int(c["id"]), c["image_url"])
-                if path:
-                    st.image(str(path), width="stretch")
-                qty = f" ×{int(c[qty_col])}" if qty_col else ""
-                st.caption(f"**{c['nom']}**{qty}")
-                if st.button("Voir", key=f"{key}_{c['id']}_{i + j}", width="stretch"):
-                    open_card(ids, start + i + j)
+            with col, st.container(key=f"tile_{key}_{c['id']}_{i + j}"):
+                card_img(st, c)
+                badge = f" {c['badge']}" if c.get("badge") else ""
+                st.caption(f"**{c['nom']}**{badge}")
+                if st.button(c["nom"], key=f"open_{key}_{c['id']}_{i + j}"):
+                    open_card(ids, i + j)
 
 
 # --------------------------------------------------------------------------- pages
@@ -154,8 +175,8 @@ def page_collection():
 
     f1, f2, f3, f4 = st.columns([3, 2, 2, 2])
     text = f1.text_input("Recherche", placeholder="ex. mekk, ciel bleu, infini…")
-    cats = f2.multiselect("Catégorie", sorted(df["catégorie"].unique()))
-    locs = f3.multiselect("Emplacement", locations)
+    cats = f2.multiselect("Catégorie", sorted(df["catégorie"].unique()), placeholder="Choisir…")
+    locs = f3.multiselect("Emplacement", locations, placeholder="Choisir…")
     owned_only = f4.toggle("Seulement mes cartes", value=True)
 
     view = search(df, text)
@@ -168,7 +189,7 @@ def page_collection():
             f"SELECT card_id FROM collection WHERE location IN ({','.join('?' * len(locs))})", locs)]
         view = view[view["id"].isin(ids)]
     g1, g2 = st.columns([3, 1])
-    arch = g1.multiselect("Archétype", sorted(a for a in view["archétype"].unique() if a))
+    arch = g1.multiselect("Archétype", sorted(a for a in view["archétype"].unique() if a), placeholder="Choisir…")
     if arch:
         view = view[view["archétype"].isin(arch)]
     per_row = g2.select_slider("Cartes par ligne", [4, 5, 6, 8], value=6)
@@ -180,7 +201,7 @@ def page_collection():
 
     tab_gallery, tab_list = st.tabs(["Galerie", "Tableau"])
     with tab_gallery:
-        gallery(view, "coll", per_row=per_row, qty_col="owned")
+        gallery(view.assign(badge="×" + view["owned"].astype(str)), "coll", per_row=per_row)
     with tab_list:
         cols = {"nom": "Nom", "catégorie": "Catégorie", "type_fr": "Type", "attribut": "Attribut", "level": "Niv.",
                 "atk": "ATK", "def": "DEF", "archétype": "Archétype", "banlist": "Banlist", "owned": "Stock"}
@@ -260,10 +281,8 @@ def page_builder():
                             (deck_id, int(card["id"]), zone, int(qty)))
                 con.commit()
                 st.rerun()
-            path = image_path(int(card["id"]), card["image_url"])
-            if path:
-                st.image(str(path), width=260)
-            st.write(card["desc_fr"] or card["desc_en"])
+            card_img(st, card, max_width="260px")
+            st.write(effect_text(card))
         else:
             st.caption("Aucun résultat.")
 
@@ -310,15 +329,11 @@ def page_builder():
                 st.rerun()
 
     st.divider()
-    order = {c["id"]: i for i, c in enumerate(cards)}
     for zone, label in ZONES.items():
-        zone_cards = {c["id"]: c["quantity"] for c in cards if c["zone"] == zone}
-        if zone_cards:
+        items = [(c["id"], f"×{c['quantity']}") for c in cards if c["zone"] == zone]
+        if items:
             st.markdown(f"**{label}**")
-            view = df[df["id"].isin(zone_cards)].copy()
-            view["qty"] = view["id"].map(zone_cards)
-            view = view.sort_values("id", key=lambda s: s.map(order))
-            gallery(view, f"deck_{zone}", per_row=8, qty_col="qty", paginate=False)
+            cards_gallery(items, f"deck_{zone}", per_row=8)
 
 
 def pct(p: float) -> str:
@@ -395,7 +410,7 @@ def page_analysis():
 
     with st.expander("Calcul personnalisé"):
         names = sorted({c["name_fr"] or c["name_en"] for c in main})
-        chosen = st.multiselect("Cartes que tu veux voir en main", names)
+        chosen = st.multiselect("Cartes que tu veux voir en main", names, placeholder="Choisir…")
         k = st.number_input("Combien au minimum", 1, 5, 1)
         hits = sum(c["quantity"] for c in main if (c["name_fr"] or c["name_en"]) in chosen)
         if chosen:
@@ -409,21 +424,33 @@ def page_analysis():
     others = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks WHERE id != ?", (deck_id,))}
     other = st.selectbox("Autre deck", ["—"] + list(others))
     if other != "—":
-        mine = {(c["name_fr"] or c["name_en"], c["zone"]): c["quantity"] for c in cards}
-        theirs = {(c["name_fr"] or c["name_en"], c["zone"]): c["quantity"] for c in A.deck_cards(con, others[other])}
+        other_cards = A.deck_cards(con, others[other])
+        mine = {(c["id"], c["zone"]): c["quantity"] for c in cards}
+        theirs = {(c["id"], c["zone"]): c["quantity"] for c in other_cards}
         plus, minus = [], []
-        for key in sorted(set(mine) | set(theirs)):
+        for key in set(mine) | set(theirs):
             d = theirs.get(key, 0) - mine.get(key, 0)
-            line = f"{'+' if d > 0 else '−'}{abs(d)} {key[0]} *({ZONES[key[1]]})*"
-            if d > 0:
-                plus.append(line)
-            elif d < 0:
-                minus.append(line)
-        c1, c2 = st.columns(2)
-        c1.markdown(f"**Ajoutées dans « {other} »** (par rapport à « {me} »)")
-        c1.markdown("\n".join(f"- {line}" for line in plus) or "_aucune_")
-        c2.markdown(f"**Retirées dans « {other} »**")
-        c2.markdown("\n".join(f"- {line}" for line in minus) or "_aucune_")
+            if d:
+                (plus if d > 0 else minus).append((key[0], f"{'+' if d > 0 else '−'}{abs(d)} · {ZONES[key[1]]}"))
+        names = {c["id"]: c["name_fr"] or c["name_en"] for c in cards + other_cards}
+        plus.sort(key=lambda x: (x[1].split("· ")[1], names[x[0]]))
+        minus.sort(key=lambda x: (x[1].split("· ")[1], names[x[0]]))
+        size = lambda cs: " · ".join(f"{ZONES[z]} {deck_counts(cs)[z]}" for z in ZONES)
+        st.caption(f"« {me} » : {size(cards)}  —  « {other} » : {size(other_cards)}")
+        st.subheader(f"Ajoutées dans « {other} »")
+        cards_gallery(plus, "cmp_plus", per_row=8)
+        st.subheader(f"Retirées dans « {other} »")
+        cards_gallery(minus, "cmp_minus", per_row=8)
+        with st.expander("Voir les deux decks complets côte à côte"):
+            left, right = st.columns(2, gap="large")
+            for col, name, cs, key in ((left, me, cards, "cmp_me"), (right, other, other_cards, "cmp_other")):
+                with col:
+                    st.markdown(f"**{name}**")
+                    for zone, label in ZONES.items():
+                        items = [(c["id"], f"×{c['quantity']}") for c in cs if c["zone"] == zone]
+                        if items:
+                            st.caption(f"{label} ({sum(c['quantity'] for c in cs if c['zone'] == zone)})")
+                            cards_gallery(items, f"{key}_{zone}", per_row=5)
 
     # 5. Suggestions
     st.header("5. Cartes de ton stock à envisager")
@@ -454,21 +481,58 @@ def page_corrections():
         WHERE col.card_id IS NULL OR col.match_score < 100
         GROUP BY col.excel_name, col.card_id ORDER BY col.card_id IS NOT NULL, match_score""")]
     rows = [r for r in rows if r["excel_name"] not in overrides]
+    st.subheader("À vérifier")
     if not rows:
         st.success("Toutes les cartes sont reconnues.")
     for r in rows:
         current = r["name_fr"] or r["name_en"]
-        with st.container(border=True):
-            st.markdown(f"**{r['excel_name']}** — {r['location']} ×{r['quantity']} → "
-                        + (f"reconnue comme *{current}* (score {r['match_score']})" if current else ":red[non reconnue]"))
-            text = st.text_input("Chercher la bonne carte", value=r["excel_name"].split()[0], key=f"fix_q_{r['excel_name']}")
+        status = f"reconnue comme *{current}* (score {r['match_score']})" if current else ":red[non reconnue]"
+        correction_form(r["excel_name"], f"{r['location']} ×{r['quantity']} → {status}")
+
+    st.subheader("Corrections enregistrées")
+    st.caption("Tu peux revenir sur une correction ici.")
+    saved = con.execute("""SELECT o.excel_name, c.name_fr, c.name_en FROM name_overrides o
+                           JOIN cards c ON c.id = o.card_id ORDER BY o.excel_name""").fetchall()
+    for r in saved:
+        with st.expander(f"{r['excel_name']}  →  {r['name_fr'] or r['name_en']}"):
+            correction_form(r["excel_name"], None)
+
+
+def correction_form(excel_name: str, status: str | None):
+    """Cartes candidates les plus proches du nom de l'Excel ; la carte actuelle est présélectionnée,
+    son image s'affiche pour vérifier avant de valider."""
+    df = catalog()
+    current = con.execute("SELECT card_id FROM collection WHERE excel_name = ? AND card_id IS NOT NULL",
+                          (excel_name,)).fetchone()
+    current_id = current[0] if current else None
+    with st.container(border=status is not None):
+        if status:
+            st.markdown(f"**{excel_name}** — {status}")
+        form, preview = st.columns([3, 1])
+        text = form.text_input("Chercher une autre carte (laisser vide = cartes les plus proches)",
+                               key=f"fix_q_{excel_name}")
+        if text:
             res = search(df, text).head(100)
-            if len(res):
-                labels = {f"{x.nom} ({x['catégorie']})": int(x.id) for _, x in res.iterrows()}
-                choice = st.selectbox("Carte", list(labels), key=f"fix_s_{r['excel_name']}")
-                if st.button("Valider", key=f"fix_b_{r['excel_name']}"):
-                    save_correction(r["excel_name"], labels[choice])
-                    refresh()
+        else:
+            q = normalize(excel_name)
+            names = dict(zip(df.index, df["name_fr"].fillna(df["name_en"]).map(normalize)))
+            found = process.extract(q, names, scorer=fuzz.WRatio, limit=30)
+            # même pondération que l'import : WRatio seul sur-note les sous-chaînes
+            found.sort(key=lambda m: -(m[1] + fuzz.ratio(q, m[0])))
+            res = df.loc[[i for _, _, i in found[:10]]]
+        if current_id is not None and current_id not in set(res["id"]):
+            res = pd.concat([df[df["id"] == current_id], res])
+        if res.empty:
+            form.caption("Aucun résultat.")
+            return
+        ids = [int(i) for i in res["id"]]
+        labels = {int(x.id): f"{x.nom} ({x['catégorie']})" for _, x in res.iterrows()}
+        index = ids.index(current_id) if current_id in ids else 0
+        choice = form.selectbox("Carte", ids, index=index, format_func=labels.get, key=f"fix_s_{excel_name}")
+        card_img(preview, df[df["id"] == choice].iloc[0], max_width="140px")
+        if form.button("Valider", key=f"fix_b_{excel_name}", disabled=choice == current_id and status is None):
+            save_correction(excel_name, choice)
+            refresh()
 
 
 def save_correction(excel_name: str, card_id: int):
