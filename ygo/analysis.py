@@ -20,22 +20,43 @@ GENERIC_EXTRA = {
 }
 
 
+MEKK = "Monstre Mekk-Chevalier"
+LEGACY = "Magie/Piège Héritage du Monde"
+EXTRA_MEKK = "Extra Mekk-Chevalier"
+INTERRUPT = "Interruption depuis la main"
+BREAKER = "Destruction du terrain adverse"
+EXTRA_GENERIC = "Extra générique"
+PSYCHIC = "Moteur Psychique"
+OTHER = "Autre"
+
+ROLE_HELP = {
+    MEKK: "Le cœur du deck : ils s'invoquent seuls dès que 2 cartes sont dans la même colonne.",
+    LEGACY: "Soutien de l'archétype : recherche, recyclage, négation dans la colonne d'un Mekk-Chevalier.",
+    INTERRUPT: "Cartes jouées depuis la main pendant le tour adverse pour couper son combo (« handtraps »).",
+    BREAKER: "Retirent les cartes adverses : indispensables quand tu joues en second.",
+    PSYCHIC: "Ancien soutien Psychique : peu de synergie avec les Mekk-Chevaliers.",
+    OTHER: "Cartes qui n'entrent dans aucune autre catégorie.",
+    EXTRA_MEKK: "Monstres Lien de l'archétype.",
+    EXTRA_GENERIC: "Monstres d'Extra Deck invocables avec n'importe quels monstres.",
+}
+
+
 def role(card: dict) -> str:
     name, arch, frame = card["name_en"], card["archetype"], card["frame_type"]
     if arch == "Mekk-Knight" and not is_extra(frame) and frame not in ("spell", "trap"):
-        return "Moteur Mekk (monstre)"
+        return MEKK
     if arch == "Mekk-Knight":
-        return "Héritage du Monde (magie/piège)" if frame in ("spell", "trap") else "Extra Mekk"
+        return LEGACY if frame in ("spell", "trap") else EXTRA_MEKK
     if name in HANDTRAPS:
-        return "Handtrap"
+        return INTERRUPT
     if name in BOARD_BREAKERS:
-        return "Board breaker"
+        return BREAKER
     if is_extra(frame):
-        return "Extra générique"
+        return EXTRA_GENERIC
     if card["race"] == "Psychic" or name in ("Emergency Teleport", "Psychic Feel Zone", "Telepathic Power",
                                               "Psychic Overload", "Assault Mode Activate"):
-        return "Moteur Psychique"
-    return "Autre"
+        return PSYCHIC
+    return OTHER
 
 
 def deck_cards(con, deck_id: int) -> list[dict]:
@@ -53,13 +74,13 @@ def check(cards: list[dict], stock_check: bool = True) -> list[tuple[str, str]]:
     extra = sum(c["quantity"] for c in cards if c["zone"] == "extra")
     side = sum(c["quantity"] for c in cards if c["zone"] == "side")
     if not 40 <= main <= 60:
-        issues.append(("error", f"Main deck : {main} cartes (doit être entre 40 et 60)."))
+        issues.append(("error", f"Main Deck : {main} cartes. Le règlement impose entre 40 et 60."))
     elif main > 42:
-        issues.append(("warning", f"Main deck : {main} cartes. Au-delà de 40-42, tu pioches moins souvent tes meilleures cartes."))
+        issues.append(("warning", f"Main Deck : {main} cartes. Au-delà de 40-42, tu pioches moins souvent tes meilleures cartes."))
     if extra > 15:
-        issues.append(("error", f"Extra deck : {extra} cartes (max 15)."))
+        issues.append(("error", f"Extra Deck : {extra} cartes. Le maximum est 15."))
     if side > 15:
-        issues.append(("error", f"Side deck : {side} cartes (max 15)."))
+        issues.append(("error", f"Side Deck : {side} cartes. Le maximum est 15."))
 
     totals = {}
     for c in cards:
@@ -68,10 +89,10 @@ def check(cards: list[dict], stock_check: bool = True) -> list[tuple[str, str]]:
         name = c["name_fr"] or c["name_en"]
         limit = BAN_LIMIT.get(c["ban_tcg"], 3)
         if qty > limit:
-            label = "interdite" if limit == 0 else f"limitée à {limit}"
-            issues.append(("error", f"{name} : {qty} exemplaire(s), carte {label} (banlist TCG)."))
+            label = "interdite" if limit == 0 else f"limitée à {limit} exemplaire(s)"
+            issues.append(("error", f"{name} : {qty} exemplaire(s) alors que la carte est {label} (banlist TCG)."))
         if stock_check and qty > c["owned"]:
-            issues.append(("warning", f"{name} : {qty} dans le deck mais seulement {c['owned']} en stock."))
+            issues.append(("warning", f"{name} : {qty} dans le deck mais tu n'en possèdes que {c['owned']}."))
     return issues
 
 
@@ -94,11 +115,11 @@ def suggestions(con, deck_id: int) -> list[dict]:
         if c["archetype"] == "Mekk-Knight":
             why = "Carte de l'archétype"
         elif c["name_en"] in HANDTRAPS:
-            why = "Handtrap générique, jouable dans tous les decks"
+            why = "Interruption depuis la main, jouable dans tous les decks"
         elif c["name_en"] in BOARD_BREAKERS:
-            why = "Board breaker, utile en jouant second"
+            why = "Détruit le terrain adverse, utile en jouant second"
         elif c["name_en"] in GENERIC_EXTRA:
-            why = "Extra générique accessible avec des monstres Mekk"
+            why = "Extra Deck générique invocable avec tes Mekk-Chevaliers"
         else:
             continue
         c["why"] = why

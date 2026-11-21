@@ -155,8 +155,18 @@ def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
                 qty_by_card[card_id] += qty
         if sheet.startswith(DECK_SHEET_PREFIX) and qty_by_card:
             save_deck_from_counts(con, sheet, qty_by_card)
+    fill_missing_french_names(con)
     con.commit()
     return report
+
+
+def fill_missing_french_names(con) -> None:
+    """Cartes récentes sans traduction dans l'API : on reprend le nom écrit dans l'Excel."""
+    rows = con.execute("""SELECT c.id, MIN(col.excel_name) AS excel_name FROM cards c
+                          JOIN collection col ON col.card_id = c.id
+                          WHERE c.name_fr IS NULL GROUP BY c.id""").fetchall()
+    con.executemany("UPDATE cards SET name_fr = ? WHERE id = ?",
+                    [(r["excel_name"][:1].upper() + r["excel_name"][1:], r["id"]) for r in rows])
 
 
 def save_deck_from_counts(con, name: str, counts: dict[int, int]) -> int:

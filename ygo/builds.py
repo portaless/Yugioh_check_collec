@@ -45,8 +45,8 @@ par carte adverse dans sa colonne.
 - *Force de Miroir*, *Pommes d'Or*, *L'Union fait la Force*, *Pot d'Avarice* : trop lents ou trop situationnels.
 
 **Ce qui entre, depuis ton stock Arc-V**
-- 3 *Infinite Impermanence*, 2 *Effect Veiler*, une 3e *Floraison de Cendres*, *Nibiru* et *Mulcharmy Fuwalos* :
-  ils interrompent le combo adverse quand tu joues en second.
+- 3 *Infini Éphémère*, 2 *Illusionniste d'Effet*, une 3e *Floraison de Cendres*, *Nibiru* et *Mulcharmy Fuwalos* :
+  ces interruptions depuis la main coupent le combo adverse quand tu joues en second.
 - *Poussée des Triples Tactiques* : si l'adversaire a activé un effet de monstre, elle pose depuis le deck
   une Magie/Piège Normale (*Raigeki*, *Plumeau*, *Changement de Cœur*, *Monster Reborn*).
 - *Pot de la Prospérité* pour la consistance. Attention : tu ne peux plus piocher par effet ce tour-là,
@@ -60,8 +60,8 @@ par carte adverse dans sa colonne.
 - *S:P Petite Chevaleresque*, *Accècodeur Bavard* et *I:P Masquerena* sont des Links génériques. Ils ouvrent
   aussi la voie à *Avramax* (2+ monstres invoqués depuis l'Extra Deck).
 
-**Pistes d'achat** : *World Legacy Discovery*, *Enlilgirsu, the Orcust Mekk-Knight* et *Mekk-Knight Avram*
-manquent à ta collection.
+**Pistes d'achat** : *Découverte de l'Héritage du Monde*, *Avram Mekk-Chevalier* et *Enlilgirsu*
+(le Lien Mekk-Chevalier Orcust) manquent à ta collection.
 """
 
 
