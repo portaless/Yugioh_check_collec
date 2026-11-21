@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --fg: #262730; --muted: rgba(38,39,48,.62); --panel: rgba(128,128,128,.10); --accent: #d0574d; --btn: rgba(128,128,128,.16); }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #fafafa; --muted: rgba(250,250,250,.62); --panel: rgba(255,255,255,.07); --btn: rgba(255,255,255,.12); }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Source Sans Pro", "Source Sans 3", system-ui, sans-serif; color: var(--fg); background: transparent; overflow: hidden; }
+  body:focus { outline: none; }
+  .viewer { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 28px; height: calc(100% - 56px); }
+  .art { position: relative; display: flex; align-items: flex-start; justify-content: center; min-height: 0; }
+  .art img { max-width: 100%; max-height: 100%; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.28); transition: opacity .12s ease; user-select: none; -webkit-user-drag: none; }
+  .art img.loading { opacity: .35; }
+  .info { overflow-y: auto; padding-right: 6px; min-height: 0; }
+  h2 { margin: 0 0 .6rem; font-size: 1.6rem; line-height: 1.2; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.1rem; margin: 0 0 1rem; font-size: 1.05rem; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-weight: 600; }
+  .note { color: var(--muted); font-size: .9rem; margin: 0 0 .4rem; }
+  .effect { font-size: 1.12rem; line-height: 1.6; padding: .9rem 1.1rem; border-radius: 10px; background: var(--panel); white-space: pre-line; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  button { font: inherit; font-size: 1rem; color: var(--fg); background: var(--btn); border: 0; border-radius: 10px; padding: .55rem 1.2rem; cursor: pointer; min-width: 150px; }
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+  button:disabled { opacity: .35; cursor: default; }
+  .pos { color: var(--muted); font-size: .95rem; text-align: center; }
+  .pos kbd { font-family: inherit; font-size: .8rem; padding: 1px 6px; border-radius: 4px; background: var(--btn); }
+  @media (max-width: 640px) {
+    .viewer { grid-template-columns: 1fr; overflow-y: auto; }
+    .art img { max-height: 55vh; }
+    button { min-width: 0; }
+  }
+</style>
+</head>
+<body tabindex="0">
+<div class="viewer">
+  <div class="art"><img id="img" alt=""></div>
+  <div class="info">
+    <h2 id="name"></h2>
+    <dl id="facts"></dl>
+    <p class="note" id="note" hidden>Pas encore de texte officiel en français pour cette carte, voici le texte anglais :</p>
+    <div class="effect" id="effect"></div>
+  </div>
+</div>
+<div class="nav">
+  <button id="prev">◀ Précédente</button>
+  <div class="pos"><span id="pos"></span><br><kbd>←</kbd> <kbd>→</kbd> pour naviguer</div>
+  <button id="next">Suivante ▶</button>
+</div>
+<script>
+const CARDS = __CARDS__;
+let pos = __POS__;
+const $ = id => document.getElementById(id);
+const cache = {};
+
+function preload(i) {
+  if (i < 0 || i >= CARDS.length || cache[i]) return;
+  cache[i] = new Image();
+  cache[i].src = CARDS[i].src;
+}
+
+function show(i) {
+  pos = Math.max(0, Math.min(CARDS.length - 1, i));
+  const c = CARDS[pos];
+  const img = $("img");
+  img.classList.add("loading");
+  img.onload = () => img.classList.remove("loading");
+  img.src = c.src;
+  img.alt = c.name;
+  $("name").textContent = c.name;
+  const facts = $("facts");
+  facts.replaceChildren();
+  for (const [k, v] of c.facts) {
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v;
+    facts.append(dt, dd);
+  }
+  $("note").hidden = !c.english;
+  $("effect").textContent = c.effect;
+  $("pos").textContent = `${pos + 1} / ${CARDS.length}`;
+  $("prev").disabled = pos === 0;
+  $("next").disabled = pos === CARDS.length - 1;
+  for (const d of [1, 2, -1, -2]) preload(pos + d);
+}
+
+$("prev").onclick = () => show(pos - 1);
+$("next").onclick = () => show(pos + 1);
+
+function onKey(e) {
+  if (e.key === "ArrowLeft") { show(pos - 1); e.preventDefault(); }
+  if (e.key === "ArrowRight") { show(pos + 1); e.preventDefault(); }
+}
+document.addEventListener("keydown", onKey);
+// Les flèches marchent aussi quand le focus est resté sur la page Streamlit (un seul écouteur à la fois)
+try {
+  const top = window.parent;
+  if (top.__ygoViewerKey) top.document.removeEventListener("keydown", top.__ygoViewerKey);
+  const frame = window.frameElement;
+  top.__ygoViewerKey = e => {
+    if (frame && frame.isConnected) onKey(e);
+    else top.document.removeEventListener("keydown", top.__ygoViewerKey);  // visionneuse fermée
+  };
+  top.document.addEventListener("keydown", top.__ygoViewerKey);
+} catch (err) { /* page parente inaccessible : seul le focus dans la visionneuse compte */ }
+
+// Glisser du doigt sur mobile / tablette
+let touchX = null;
+document.addEventListener("touchstart", e => { touchX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener("touchend", e => {
+  if (touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) show(pos + (dx < 0 ? 1 : -1));
+  touchX = null;
+});
+
+show(pos);
+document.body.focus();
+</script>
+</body>
+</html>

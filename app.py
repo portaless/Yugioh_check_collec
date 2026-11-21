@@ -1,9 +1,11 @@
 """IHM Yu-Gi-Oh! : collection, constructeur de deck, analyse.   Lancer :  streamlit run app.py"""
 import json
 from html import escape
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from rapidfuzz import fuzz, process
 
 from ygo import analysis as A
@@ -16,7 +18,7 @@ from ygo.importer import CORRECTIONS_PATH, normalize
 st.set_page_config(page_title="Yu-Gi-Oh! – Ma collection", page_icon="🃏", layout="wide")
 
 # Galerie : un bouton transparent recouvre chaque vignette, le clic sur l'image ouvre la fiche.
-# Fiche : texte d'effet et caractéristiques en grand à côté de l'image.
+# La fiche (visionneuse) est élargie à presque tout l'écran.
 st.html("""<style>
 div[class*="st-key-tile_"] { position: relative; }
 div[class*="st-key-tile_"] .stElementContainer:has(.stButton) { position: absolute; inset: 0; z-index: 2; margin: 0; }
@@ -25,11 +27,7 @@ div[class*="st-key-tile_"] .stButton, div[class*="st-key-tile_"] .stButton butto
 .card-img { width: 100%; display: block; border-radius: 6px; }
 div[class*="st-key-tile_"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
 div[class*="st-key-tile_"]:hover img { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
-.card-facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; font-size: 1.05rem; margin: .5rem 0 1rem; }
-.card-facts dt { opacity: .65; }
-.card-facts dd { margin: 0; font-weight: 600; }
-.card-effect { font-size: 1.12rem; line-height: 1.6; padding: .9rem 1.1rem; border-radius: 8px;
-    background: rgba(128,128,128,.12); white-space: pre-line; }
+div[role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }
 </style>""")
 
 
@@ -91,10 +89,7 @@ def card_img(container, c, max_width: str = "100%"):
                        f"style='max-width:{max_width}'>")
 
 
-def show_card(c):
-    left, right = st.columns([2, 3], gap="large")
-    card_img(left, c)
-    right.subheader(c["nom"])
+def card_facts(c) -> dict:
     facts = {"Catégorie": c["catégorie"], "Type": c["type_fr"], "Attribut": c["attribut"]}
     if pd.notna(c["level"]):
         facts["Rang" if "xyz" in c["frame_type"] else "Niveau"] = "★" * int(c["level"]) + f"  ({int(c['level'])})"
@@ -109,35 +104,33 @@ def show_card(c):
     facts["En stock"] = int(c["owned"])
     if pd.notna(c["price_cm"]):
         facts["Cardmarket"] = f"≈ {c['price_cm']:.2f} €"
-    items = "".join(f"<dt>{k}</dt><dd>{escape(str(v))}</dd>" for k, v in facts.items() if v not in ("", None))
-    right.html(f"<dl class='card-facts'>{items}</dl>")
-    if pd.isna(c["desc_fr"]):
-        right.caption("Pas encore de texte officiel en français pour cette carte, voici le texte anglais :")
-    right.html(f"<div class='card-effect'>{escape(effect_text(c))}</div>")
+    return {k: str(v) for k, v in facts.items() if v not in ("", None)}
 
 
 def effect_text(c) -> str:
     return c["desc_en"] if pd.isna(c["desc_fr"]) else c["desc_fr"]
 
 
+VIEWER_HTML = (Path(__file__).parent / "ygo" / "viewer.html").read_text(encoding="utf8")
+VIEWER_WINDOW = 300  # cartes envoyées au navigateur autour de celle ouverte
+
+
 @st.dialog("Fiche de la carte", width="large")
-def card_dialog():
-    ids, pos = st.session_state["dlg_ids"], st.session_state["dlg_pos"]
-    df = catalog()
-    show_card(df[df["id"] == ids[pos]].iloc[0])
-    prev_col, mid, next_col = st.columns([1, 2, 1])
-    if prev_col.button("◀ Précédente", disabled=pos == 0, width="stretch"):
-        st.session_state["dlg_pos"] -= 1
-        st.rerun(scope="fragment")
-    mid.markdown(f"<div style='text-align:center'>{pos + 1} / {len(ids)}</div>", unsafe_allow_html=True)
-    if next_col.button("Suivante ▶", disabled=pos == len(ids) - 1, width="stretch"):
-        st.session_state["dlg_pos"] += 1
-        st.rerun(scope="fragment")
+def card_dialog(ids: list[int], pos: int):
+    """Visionneuse exécutée dans le navigateur : changer de carte ne repasse pas par le serveur."""
+    start = max(0, min(pos - VIEWER_WINDOW // 2, len(ids) - VIEWER_WINDOW))
+    window = ids[start:start + VIEWER_WINDOW]
+    df = catalog().set_index("id").loc[window].reset_index()
+    cards = [{"src": image_src(int(c["id"]), c["image_url"]), "name": c["nom"],
+              "facts": list(card_facts(c).items()), "effect": effect_text(c), "english": bool(pd.isna(c["desc_fr"]))}
+             for c in df.to_dict("records")]
+    # "</" échappé pour qu'un texte de carte ne puisse pas fermer la balise <script>
+    payload = json.dumps(cards, ensure_ascii=False).replace("</", "<\\/")
+    components.html(VIEWER_HTML.replace("__CARDS__", payload).replace("__POS__", str(pos - start)), height=620)
 
 
 def open_card(ids: list[int], pos: int):
-    st.session_state["dlg_ids"], st.session_state["dlg_pos"] = ids, pos
-    card_dialog()
+    card_dialog(ids, pos)
 
 
 def cards_gallery(items: list[tuple[int, str]], key: str, per_row: int = 6):
