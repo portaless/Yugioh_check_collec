@@ -5,7 +5,8 @@ Hypothèses de jeu (volontairement simples, affichées dans l'IHM) :
 - En premier, le terrain adverse est vide : un Mekk ne peut s'invoquer que si tu poses toi-même une carte dans
   sa colonne. Main jouable = Mémoire, ou un Mekk + une Magie/Piège à poser, ou deux Mekk.
 - En second, l'adversaire a rempli son terrain : un seul Mekk suffit à démarrer.
-- Main forte en premier = jouable + au moins une protection (Piège ou interruption depuis la main).
+- Main forte en premier = jouable + au moins une protection (Piège Héritage du Monde, Piège générique efficace
+  comme Jugement Solennel, ou interruption depuis la main).
 - Main forte en second = jouable + au moins une interruption depuis la main ou une carte de destruction.
 """
 from dataclasses import dataclass
@@ -17,7 +18,7 @@ from . import analysis as A
 MEMORY = "World Legacy's Memory"
 N_HANDS = 20_000
 
-FLAGS = ("starter", "mekk", "memory", "backrow", "trap", "interrupt", "breaker", "offplan")
+FLAGS = ("starter", "mekk", "memory", "backrow", "trap", "interrupt", "protect", "breaker", "offplan")
 
 
 def card_flags(c: dict) -> dict:
@@ -28,8 +29,12 @@ def card_flags(c: dict) -> dict:
         "memory": c["name_en"] == MEMORY,
         "starter": role == A.MEKK or c["name_en"] == MEMORY,
         "backrow": frame in ("spell", "trap"),
-        "trap": frame == "trap",
+        # protection posée : Pièges de l'archétype ou Pièges génériques efficaces (pas Pommes d'Or & co)
+        "trap": frame == "trap" and (c.get("archetype") == "Mekk-Knight" or c["name_en"] in A.PROTECTION_TRAPS),
         "interrupt": role == A.INTERRUPT,
+        # protection gardée après ton tour en premier ; les Mulcharmy exigent de ne contrôler aucune carte
+        "protect": (frame == "trap" and (c.get("archetype") == "Mekk-Knight" or c["name_en"] in A.PROTECTION_TRAPS))
+                   or (role == A.INTERRUPT and not c["name_en"].startswith("Mulcharmy")),
         "breaker": role == A.BREAKER,
         "offplan": role in (A.PSYCHIC, A.OTHER),
     }
@@ -49,7 +54,7 @@ def _verdicts(counts: dict, first: bool) -> tuple[np.ndarray, np.ndarray]:
     if first:
         playable = (counts["memory"] >= 1) | ((counts["mekk"] >= 1) & (counts["backrow"] - counts["memory"] >= 1)) \
                    | (counts["mekk"] >= 2)
-        strong = playable & ((counts["trap"] + counts["interrupt"]) >= 1)
+        strong = playable & (counts["protect"] >= 1)
     else:
         playable = counts["starter"] >= 1
         strong = playable & ((counts["interrupt"] + counts["breaker"]) >= 1)
@@ -109,9 +114,9 @@ def describe_hand(hand: list[dict], first: bool) -> tuple[str, list[str]]:
     else:
         if not counts["memory"]:
             reasons.append("Aucun starter : la main ne peut pas lancer le moteur Mekk.")
-    if first and counts["trap"] + counts["interrupt"]:
+    if first and counts["protect"]:
         reasons.append("Protection pour le tour adverse : " + ", ".join(
-            sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)["trap"] or card_flags(c)["interrupt"]})) + ".")
+            sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)["protect"]})) + ".")
     if not first and counts["interrupt"] + counts["breaker"]:
         reasons.append("De quoi gêner l'adversaire : " + ", ".join(
             sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)["interrupt"] or card_flags(c)["breaker"]})) + ".")
@@ -171,7 +176,7 @@ def matchup(deck: list[dict], opp_deck: list[dict], n: int = 10_000, seed: int =
 
     playable_first, _ = _verdicts(first, True)
     turn1 = playable_first & (first["starter"] >= ht6 + 1)
-    holds = turn1 & ((first["trap"] + first["interrupt"]) >= np.maximum(1, br6))
+    holds = turn1 & (first["protect"] >= np.maximum(1, br6))
     playable_second, _ = _verdicts(second, False)
     comeback = playable_second & (second["starter"] >= ht5 + 1)
     strong = comeback & ((second["interrupt"] + second["breaker"]) >= 1)
@@ -201,7 +206,7 @@ def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool) -> tup
     elif not passes:
         reasons.append("Chaque interruption coupe une ligne : il te manque un starter de secours.")
     if first:
-        prot = counts["trap"] + counts["interrupt"]
+        prot = counts["protect"]
         holds = passes and prot >= max(1, len(brs))
         if passes:
             reasons.append(f"Protections gardées pour son tour : {prot}"

@@ -14,6 +14,11 @@ BOARD_BREAKERS = {
     "Raigeki", "Harpie's Feather Duster", "Lava Golem", "Change of Heart", "Triple Tactics Talent",
     "Triple Tactics Thrust", "Dark Ruler No More", "Evenly Matched",
 }
+# Pièges qui protègent réellement un plateau (en plus des Pièges « Héritage du Monde » et des interruptions)
+PROTECTION_TRAPS = {
+    "Solemn Judgment", "Solemn Strike", "Solemn Warning", "Mirror Force", "Torrential Tribute",
+    "Dimensional Barrier", "Infinite Impermanence", "Evenly Matched", "Dogmatika Punishment",
+}
 GENERIC_EXTRA = {
     "Accesscode Talker", "S:P Little Knight", "I:P Masquerena", "Chaos Angel", "Time Thief Redoer",
     "Psychic End Punisher", "Hyper Psychic Blaster", "Outer Entity Nyarla",
