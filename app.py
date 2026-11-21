@@ -10,6 +10,7 @@ from rapidfuzz import fuzz, process
 
 from ygo import analysis as A
 from ygo import builds, importer
+from ygo import simulation as S
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, ZONES_REV, tr
 from ygo.images import image_src
@@ -429,42 +430,11 @@ def page_analysis():
                      f"**{pct(A.p_at_least(hits, n['main'], 5, k))}** en premier, "
                      f"**{pct(A.p_at_least(hits, n['main'], 6, k))}** en second.")
 
-    # 4. Comparaison
-    st.header("4. Comparer avec un autre deck")
-    me = con.execute("SELECT name FROM decks WHERE id = ?", (deck_id,)).fetchone()["name"]
-    others = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks WHERE id != ?", (deck_id,))}
-    other = st.selectbox("Autre deck", ["—"] + list(others))
-    if other != "—":
-        other_cards = A.deck_cards(con, others[other])
-        mine = {(c["id"], c["zone"]): c["quantity"] for c in cards}
-        theirs = {(c["id"], c["zone"]): c["quantity"] for c in other_cards}
-        plus, minus = [], []
-        for key in set(mine) | set(theirs):
-            d = theirs.get(key, 0) - mine.get(key, 0)
-            if d:
-                (plus if d > 0 else minus).append((key[0], f"{'+' if d > 0 else '−'}{abs(d)} · {ZONES[key[1]]}"))
-        names = {c["id"]: c["name_fr"] or c["name_en"] for c in cards + other_cards}
-        plus.sort(key=lambda x: (x[1].split("· ")[1], names[x[0]]))
-        minus.sort(key=lambda x: (x[1].split("· ")[1], names[x[0]]))
-        size = lambda cs: " · ".join(f"{ZONES[z]} {deck_counts(cs)[z]}" for z in ZONES)
-        st.caption(f"« {me} » : {size(cards)}  —  « {other} » : {size(other_cards)}")
-        st.subheader(f"Ajoutées dans « {other} »")
-        cards_gallery(plus, "cmp_plus", per_row=8)
-        st.subheader(f"Retirées dans « {other} »")
-        cards_gallery(minus, "cmp_minus", per_row=8)
-        with st.expander("Voir les deux decks complets côte à côte"):
-            left, right = st.columns(2, gap="large")
-            for col, name, cs, key in ((left, me, cards, "cmp_me"), (right, other, other_cards, "cmp_other")):
-                with col:
-                    st.markdown(f"**{name}**")
-                    for zone, label in ZONES.items():
-                        items = [(c["id"], f"×{c['quantity']}") for c in cs if c["zone"] == zone]
-                        if items:
-                            st.caption(f"{label} ({sum(c['quantity'] for c in cs if c['zone'] == zone)})")
-                            cards_gallery(items, f"{key}_{zone}", per_row=5)
+    st.info("Pour opposer ce deck à un autre (KPI, mains en premier et en second, leviers), "
+            "va dans la page **Duel de decks**.")
 
-    # 5. Suggestions
-    st.header("5. Cartes de ton stock à envisager")
+    # 4. Suggestions
+    st.header("4. Cartes de ton stock à envisager")
     sug = A.suggestions(con, deck_id)
     if not sug:
         st.caption("Rien à signaler : tes cartes utiles sont déjà dans le deck.")
@@ -476,8 +446,223 @@ def page_analysis():
 
     notes = con.execute("SELECT notes FROM decks WHERE id = ?", (deck_id,)).fetchone()["notes"]
     if notes:
-        st.header("6. Notes du build")
+        st.header("5. Notes du build")
         st.markdown(notes)
+
+
+# --------------------------------------------------------------------------- duel de decks
+
+# (libellé, attribut Kpis, plus haut = mieux, explication)
+DUEL_KPIS = [
+    ("Main jouable en premier", "playable_first", True,
+     "Tu peux lancer le moteur Mekk avec tes 5 cartes, sans aide du terrain adverse."),
+    ("Main forte en premier", "strong_first", True,
+     "Jouable, et tu gardes une protection (Piège ou interruption) pour le tour adverse."),
+    ("Main jouable en second", "playable_second", True,
+     "Au moins un starter dans tes 6 cartes : le terrain adverse fournit les colonnes."),
+    ("Main forte en second", "strong_second", True,
+     "Jouable, et tu peux couper le combo adverse ou nettoyer son terrain."),
+    ("Main bloquée en premier", "brick_first", False,
+     "Aucun starter en main : le tour est perdu."),
+    ("Cartes hors moteur par main", "offplan_per_hand", False,
+     "En moyenne, cartes qui ne servent pas le plan Mekk-Chevalier."),
+]
+
+
+def duel_kpi_table(name_a: str, name_b: str, ka, kb) -> tuple[int, int]:
+    """Tableau HTML face à face ; renvoie le nombre de KPI gagnés par A et par B."""
+    rows, wins = [], [0, 0]
+    for label, attr, higher, help_text in DUEL_KPIS:
+        va, vb = getattr(ka, attr), getattr(kb, attr)
+        is_rate = attr != "offplan_per_hand"
+        fmt = (lambda v: f"{100 * v:.0f} %") if is_rate else (lambda v: f"{v:.1f}")
+        tie_margin = S.margin(va, vb) if is_rate else 0.05
+        diff = va - vb
+        if abs(diff) <= tie_margin:
+            winner, tone = "Égalité (écart dans la marge)", None
+        else:
+            a_wins = (diff > 0) == higher
+            wins[0 if a_wins else 1] += 1
+            winner, tone = (name_a if a_wins else name_b), ("a" if a_wins else "b")
+        gap = f"{abs(diff) * 100:.0f} pts" if is_rate else f"{abs(diff):.1f} carte"
+        scale = 1 if is_rate else max(va, vb, 1)
+        bar = lambda v, side: (f"<div class='bar'><span class='{side}' style='width:{min(100, 100 * v / scale):.0f}%'></span></div>")
+        rows.append(f"""<tr><td><b>{label}</b><div class='help'>{help_text}</div></td>
+            <td class='{'win' if tone == 'a' else ''}'>{fmt(va)}{bar(va, 'a')}</td>
+            <td class='{'win' if tone == 'b' else ''}'>{fmt(vb)}{bar(vb, 'b')}</td>
+            <td>{gap if tone else '—'}</td><td>{escape(winner)}</td></tr>""")
+    st.html(f"""<style>
+      .duel {{ width: 100%; border-collapse: collapse; font-size: 1rem; }}
+      .duel th {{ text-align: left; font-weight: 600; opacity: .7; padding: .5rem; border-bottom: 1px solid rgba(128,128,128,.3); }}
+      .duel td {{ padding: .6rem .5rem; border-bottom: 1px solid rgba(128,128,128,.15); vertical-align: top; }}
+      .duel td.win {{ font-weight: 700; color: {TONES['good'][1]}; }}
+      .duel .help {{ font-size: .85rem; opacity: .65; font-weight: 400; }}
+      .duel .bar {{ height: 6px; border-radius: 3px; background: rgba(128,128,128,.15); margin-top: 4px; width: 140px; }}
+      .duel .bar span {{ display: block; height: 100%; border-radius: 3px; }}
+      .duel .bar .a {{ background: #6c8ebf; }} .duel .bar .b {{ background: #c9853a; }}
+    </style>
+    <table class='duel'><tr><th>KPI</th><th>{escape(name_a)}</th><th>{escape(name_b)}</th><th>Écart</th><th>Gagnant</th></tr>
+    {''.join(rows)}</table>""")
+    return wins[0], wins[1]
+
+
+def composition_counts(deck: list[dict]) -> dict:
+    flags = [S.card_flags(c) for c in deck]
+    total = len(deck)
+    out = {}
+    for label, flag in (("Starters (Mekk + Mémoire)", "starter"), ("Interruptions depuis la main", "interrupt"),
+                        ("Pièges (protection posée)", "trap"), ("Destruction du terrain", "breaker"),
+                        ("Hors moteur Mekk", "offplan")):
+        n = sum(f[flag] for f in flags)
+        out[label] = (n, n / total if total else 0)
+    return out
+
+
+def verdict_pill(verdict: str) -> str:
+    tone = {"Forte": "good", "Jouable": "warn", "Bloquée": "bad"}[verdict]
+    bg, fg = TONES[tone]
+    return (f"<span style='background:{bg}; color:{fg}; font-weight:700; padding:.2rem .7rem; "
+            f"border-radius:999px'>Main {verdict.lower()}</span>")
+
+
+def page_duel():
+    st.title("Duel de decks")
+    decks = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks ORDER BY name")}
+    if len(decks) < 2:
+        st.info("Il faut au moins deux decks pour les opposer.")
+        return
+    names = list(decks)
+    c1, c2 = st.columns(2)
+    name_a = c1.selectbox("Deck A", names, index=names.index("deck_mekk_beta") if "deck_mekk_beta" in names else 0)
+    rest = [n for n in names if n != name_a]
+    name_b = c2.selectbox("Deck B", rest, index=rest.index(builds.NAME) if builds.NAME in rest else 0)
+    cards_a, cards_b = A.deck_cards(con, decks[name_a]), A.deck_cards(con, decks[name_b])
+    deck_a, deck_b = S.main_deck(cards_a), S.main_deck(cards_b)
+    if not deck_a or not deck_b:
+        st.info("Un des deux Main Decks est vide.")
+        return
+    ka, kb = S.simulate(deck_a), S.simulate(deck_b)
+
+    with st.expander("Comment sont calculés ces chiffres ?"):
+        n_hands = f"{S.N_HANDS:,}".replace(",", " ")
+        st.markdown(f"""
+Chaque deck est mélangé **{n_hands} fois** (simulation de Monte-Carlo). On regarde les 5 premières cartes
+(tu commences) et les 6 premières (tu joues en second). Un écart n'est déclaré gagnant que s'il dépasse la marge
+d'erreur de la simulation (environ ±1 point) : il n'est donc pas dû au hasard.
+
+**Hypothèses de jeu**
+- *Starter* : un monstre Mekk-Chevalier, ou *Mémoire de l'Héritage du Monde* qui en invoque un depuis le deck.
+- **En premier**, le terrain adverse est vide : un Mekk ne s'invoque que si tu poses toi-même une carte dans sa
+  colonne. Main jouable = Mémoire, ou un Mekk + une Magie/Piège à poser, ou deux Mekk.
+- **En second**, l'adversaire a rempli son terrain : un seul starter suffit.
+- *Main forte* = jouable, plus une protection en premier (Piège ou interruption), ou une interruption /
+  destruction en second.
+
+Ce modèle ne joue pas les combos en entier : il mesure la régularité des mains, pas le résultat d'un duel.
+""")
+
+    # 1. Verdict
+    st.header("1. Verdict")
+    st.caption(f"« {name_a} » : {deck_counts(cards_a)['main']} cartes · « {name_b} » : {deck_counts(cards_b)['main']} cartes")
+    wins_a, wins_b = duel_kpi_table(name_a, name_b, ka, kb)
+    v1, v2, v3 = st.columns(3)
+    status_tile(v1, f"KPI gagnés par {name_a}", str(wins_a), "good" if wins_a > wins_b else "bad" if wins_a < wins_b else "warn",
+                f"sur {len(DUEL_KPIS)}")
+    status_tile(v2, f"KPI gagnés par {name_b}", str(wins_b), "good" if wins_b > wins_a else "bad" if wins_b < wins_a else "warn",
+                f"sur {len(DUEL_KPIS)}")
+    legal = {n: not [m for lvl, m in A.check(c) if lvl == "error"] for n, c in ((name_a, cards_a), (name_b, cards_b))}
+    status_tile(v3, "Légal en tournoi", "Les deux" if all(legal.values()) else "Pas les deux",
+                "good" if all(legal.values()) else "bad",
+                " · ".join(f"{n} : {'légal' if ok else 'illégal'}" for n, ok in legal.items()))
+
+    # 2. Mains d'exemple
+    st.header("2. Mains d'exemple")
+    st.caption("Des mains tirées au hasard pour voir concrètement la différence. Relance plusieurs fois : "
+               "les pourcentages du verdict résument des milliers de tirages comme ceux-ci.")
+    if st.button("Tirer de nouvelles mains", type="primary"):
+        st.session_state["duel_seed"] = st.session_state.get("duel_seed", 0) + 1
+    seed = st.session_state.get("duel_seed", 0)
+    hands = {name_a: S.sample_hands(deck_a, seed), name_b: S.sample_hands(deck_b, seed + 10_000)}
+    for idx, (label, first) in enumerate((("Tu commences (5 cartes)", True), ("Tu joues en second (6 cartes)", False))):
+        st.subheader(label)
+        cols = st.columns(2, gap="large")
+        for col, name, k in ((cols[0], name_a, ka), (cols[1], name_b, kb)):
+            hand = hands[name][idx]
+            verdict, reasons = S.describe_hand(hand, first)
+            rate = k.strong_first if first else k.strong_second
+            with col:
+                st.markdown(f"**{name}**")
+                st.html(verdict_pill(verdict) + f"<span style='opacity:.7; margin-left:.6rem'>"
+                        f"main forte dans {100 * rate:.0f} % des tirages</span>")
+                cards_gallery([(c["id"], "") for c in hand], f"hand_{idx}_{name}", per_row=6 if not first else 5)
+                st.markdown("\n".join(f"- {r}" for r in reasons))
+
+    # 3. Pourquoi
+    st.header("3. Pourquoi : la composition")
+    comp_a, comp_b = composition_counts(deck_a), composition_counts(deck_b)
+    rows = []
+    for label in comp_a:
+        (na, pa), (nb, pb) = comp_a[label], comp_b[label]
+        rows.append({"Catégorie": label, f"{name_a}": f"{na} cartes ({100 * pa:.0f} %)",
+                     f"{name_b}": f"{nb} cartes ({100 * pb:.0f} %)"})
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    sa, sb = comp_a["Starters (Mekk + Mémoire)"], comp_b["Starters (Mekk + Mémoire)"]
+    st.markdown(
+        f"Ce qui compte n'est pas le nombre de starters mais leur **densité**. « {name_a} » en a {sa[0]} sur "
+        f"{len(deck_a)} cartes ({100 * sa[1]:.0f} %), « {name_b} » {sb[0]} sur {len(deck_b)} ({100 * sb[1]:.0f} %). "
+        f"Résultat : une main bloquée en premier dans **{100 * ka.brick_first:.0f} %** des cas contre "
+        f"**{100 * kb.brick_first:.0f} %**.")
+
+    # 4. Leviers
+    st.header("4. Quels changements rapportent le plus ?")
+    st.caption("Chaque ligne simule le deck avec une seule modification. Les valeurs sont des gains en points "
+               "de pourcentage par rapport au deck actuel.")
+    cols = st.columns(2, gap="large")
+    for col, name, deck in ((cols[0], name_a, deck_a), (cols[1], name_b, deck_b)):
+        with col:
+            st.markdown(f"**{name}**")
+            lv = S.levers(deck)
+            if not lv:
+                st.caption("Plus aucune carte hors moteur : rien à remplacer.")
+                continue
+            df = pd.DataFrame([{"Modification": l["label"],
+                                "Jouable en premier": f"{100 * l['delta_first']:+.1f}",
+                                "Forte en premier": f"{100 * l['delta_strong_first']:+.1f}",
+                                "Forte en second": f"{100 * l['delta_second']:+.1f}"} for l in lv])
+            st.dataframe(df, hide_index=True, width="stretch")
+            best_first = max(lv, key=lambda l: l["delta_strong_first"])
+            best_second = max(lv, key=lambda l: l["delta_second"])
+            st.markdown(f"Meilleur levier en premier : **{best_first['label']}** "
+                        f"({100 * best_first['delta_strong_first']:+.1f} pts de mains fortes). "
+                        f"En second : **{best_second['label']}** "
+                        f"({100 * best_second['delta_second']:+.1f} pts).")
+
+    # 5. Cartes
+    st.header("5. Les cartes qui changent")
+    mine = {(c["id"], c["zone"]): c["quantity"] for c in cards_a}
+    theirs = {(c["id"], c["zone"]): c["quantity"] for c in cards_b}
+    plus, minus = [], []
+    for key in set(mine) | set(theirs):
+        d = theirs.get(key, 0) - mine.get(key, 0)
+        if d:
+            (plus if d > 0 else minus).append((key[0], f"×{abs(d)} · {ZONES[key[1]]}"))
+    card_names = {c["id"]: c["name_fr"] or c["name_en"] for c in cards_a + cards_b}
+    plus.sort(key=lambda x: (x[1].split("· ")[1], card_names[x[0]]))
+    minus.sort(key=lambda x: (x[1].split("· ")[1], card_names[x[0]]))
+    st.subheader(f"En plus dans « {name_b} »")
+    cards_gallery(plus, "cmp_plus", per_row=8)
+    st.subheader(f"En plus dans « {name_a} »")
+    cards_gallery(minus, "cmp_minus", per_row=8)
+    with st.expander("Voir les deux decks complets côte à côte"):
+        left, right = st.columns(2, gap="large")
+        for col, name, cs, key in ((left, name_a, cards_a, "cmp_a"), (right, name_b, cards_b, "cmp_b")):
+            with col:
+                st.markdown(f"**{name}**")
+                for zone, label in ZONES.items():
+                    items = [(c["id"], f"×{c['quantity']}") for c in cs if c["zone"] == zone]
+                    if items:
+                        st.caption(f"{label} ({sum(c['quantity'] for c in cs if c['zone'] == zone)})")
+                        cards_gallery(items, f"{key}_{zone}", per_row=5)
 
 
 def page_corrections():
@@ -587,6 +772,7 @@ def page_import():
 
 
 PAGES = {"Collection": page_collection, "Constructeur de deck": page_builder, "Analyse": page_analysis,
+         "Duel de decks": page_duel,
          "Corrections": page_corrections, "Import": page_import}
 page = st.sidebar.radio("Navigation", list(PAGES))
 unmatched = con.execute("SELECT COUNT(*) FROM collection WHERE card_id IS NULL").fetchone()[0]
