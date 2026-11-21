@@ -12,7 +12,7 @@ from ygo import analysis as A
 from ygo import builds, importer
 from ygo import meta
 from ygo import simulation as S
-from ygo.db import connect, is_extra
+from ygo.db import DB_PATH, connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, ZONES_REV, tr
 from ygo.images import image_src
 from ygo.importer import CORRECTIONS_PATH, normalize
@@ -58,8 +58,13 @@ def category(frame: str) -> str:
     return "Monstre"
 
 
-@st.cache_data
 def catalog() -> pd.DataFrame:
+    # la date de modification de la base sert de clé : un import, même lancé hors IHM, invalide le cache
+    return _catalog(DB_PATH.stat().st_mtime)
+
+
+@st.cache_data(max_entries=2)
+def _catalog(db_version: float) -> pd.DataFrame:
     df = pd.read_sql("""SELECT c.*, COALESCE(o.owned, 0) AS owned, r.rarities FROM cards c
                         LEFT JOIN owned o ON o.card_id = c.id
                         LEFT JOIN (SELECT card_id, GROUP_CONCAT(DISTINCT rarity) AS rarities FROM collection
@@ -77,7 +82,7 @@ def catalog() -> pd.DataFrame:
 
 
 def refresh():
-    catalog.clear()
+    _catalog.clear()
     st.rerun()
 
 
@@ -954,13 +959,13 @@ def page_import():
     c1, c2, c3 = st.columns(3)
     if c1.button("Réimporter l'Excel", type="primary"):
         st.session_state["import_report"] = importer.import_excel(con)
-        catalog.clear()
+        _catalog.clear()
     if c2.button("Mettre à jour le catalogue (banlist, nouvelles cartes)"):
         with st.spinner("Téléchargement du catalogue YGOPRODeck…"):
             importer.download_catalog(force=True)
             n = importer.load_catalog(con)
             importer.import_excel(con)
-        catalog.clear()
+        _catalog.clear()
         st.success(f"{n} cartes dans le catalogue.")
     if c3.button("Recréer la proposition de build"):
         builds.create(con)
