@@ -31,7 +31,11 @@ div[class*="st-key-tile_"] img { transition: transform .15s ease, box-shadow .15
 div[class*="st-key-tile_"]:hover img { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
 .tile-name { font-size: .85rem; margin-top: .3rem; line-height: 1.3; }
 .tile-badge { opacity: .7; }
-div[role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }
+[role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }
+/* la visionneuse s'adapte à la hauteur de la fenêtre : boutons Précédente/Suivante toujours visibles */
+[role="dialog"] .stElementContainer:has(> iframe) { height: min(640px, calc(100vh - 170px)) !important;
+    flex: 0 0 auto !important; }
+[role="dialog"] iframe { height: 100% !important; }
 </style>""")
 
 
