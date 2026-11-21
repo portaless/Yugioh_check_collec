@@ -336,6 +336,19 @@ def page_builder():
             cards_gallery(items, f"deck_{zone}", per_row=8)
 
 
+# (fond, texte) : teintes douces, lisibles en thème clair comme sombre
+TONES = {"good": ("rgba(46,160,120,.18)", "#2e9e78"), "warn": ("rgba(230,160,40,.20)", "#c98a1c"),
+         "bad": ("rgba(225,95,85,.18)", "#d0574d")}
+
+
+def status_tile(col, label: str, value: str, tone: str, detail: str):
+    bg, fg = TONES[tone]
+    col.html(f"""<div style="background:{bg}; border-radius:12px; padding:.7rem 1rem">
+        <div style="font-size:.85rem; opacity:.75">{label}</div>
+        <div style="font-size:1.6rem; font-weight:700; color:{fg}; line-height:1.3">{value}</div>
+        <div style="font-size:.85rem; opacity:.8">{detail}</div></div>""")
+
+
 def pct(p: float) -> str:
     return f"{round(100 * p)} mains sur 100"
 
@@ -357,8 +370,10 @@ def page_analysis():
     b1, b2, b3, b4 = st.columns(4)
     b1.metric("Main Deck", f"{n['main']} cartes", help="Entre 40 et 60 ; idéalement 40.")
     b2.metric("Extra Deck", f"{n['extra']} / 15")
-    b3.metric("Légal en tournoi", "Oui ✅" if not errors else f"Non ❌ ({len(errors)})")
-    b4.metric("Faisable avec ton stock", "Oui ✅" if not stock else f"Non ⚠️ ({len(stock)})")
+    status_tile(b3, "Légal en tournoi", *(("Oui", "good", "Respecte la banlist TCG") if not errors else
+                ("Non", "bad", f"{len(errors)} point(s) à corriger")))
+    status_tile(b4, "Faisable avec ton stock", *(("Oui", "good", "Tu as toutes les cartes") if not stock else
+                ("Pas encore", "warn", f"{len(stock)} carte(s) manquante(s)")))
     kinds = {"Monstres": 0, "Magies": 0, "Pièges": 0}
     for c in main:
         kinds["Magies" if c["frame_type"] == "spell" else "Pièges" if c["frame_type"] == "trap" else "Monstres"] += c["quantity"]
@@ -401,10 +416,13 @@ def page_analysis():
     reg = []
     for label, hits, k, good, ok in checks:
         p5, p6 = A.p_at_least(hits, n["main"], 5, k), A.p_at_least(hits, n["main"], 6, k)
-        verdict = "🟢 Bon" if p5 >= good else "🟡 Moyen" if p5 >= ok else "🔴 Faible"
+        verdict = "Bon" if p5 >= good else "Moyen" if p5 >= ok else "Faible"
         reg.append({"Objectif": label, "Cartes concernées": hits, "En premier (5 cartes)": pct(p5),
                     "En second (6 cartes)": pct(p6), "Verdict": verdict})
-    st.dataframe(pd.DataFrame(reg), hide_index=True, width="stretch")
+    tones = {"Bon": TONES["good"], "Moyen": TONES["warn"], "Faible": TONES["bad"]}
+    styled = pd.DataFrame(reg).style.map(
+        lambda v: f"background-color: {tones[v][0]}; color: {tones[v][1]}; font-weight: 600", subset=["Verdict"])
+    st.dataframe(styled, hide_index=True, width="stretch")
     st.caption("Verdicts indicatifs : on ne vise pas le même taux pour « 1 Mekk-Chevalier » "
                "(indispensable) que pour « 1 carte de destruction » (bonus).")
 
