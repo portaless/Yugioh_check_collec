@@ -129,6 +129,94 @@ def sample_hands(deck: list[dict], seed: int) -> tuple[list[dict], list[dict]]:
     return first, second
 
 
+@dataclass
+class Matchup:
+    turn1: float          # en premier : ton tour passe leurs interruptions
+    board_holds: float    # en premier : ... et tu gardes de quoi tenir leur tour
+    comeback: float       # en second : ton tour passe leurs interruptions
+    comeback_strong: float  # en second : ... et tu avais de quoi gêner leur tour 1
+    opp_handtraps: float  # interruptions adverses par main (6 cartes)
+    opp_breakers: float
+
+    @property
+    def index(self) -> float:
+        """Indice de matchup : moyenne des deux scénarios « réussis », pas un taux de victoire."""
+        return (self.board_holds + self.comeback_strong) / 2
+
+
+OPP_FLAGS = ("handtrap", "breaker")
+
+
+def matchup(deck: list[dict], opp_deck: list[dict], n: int = 10_000, seed: int = 0) -> Matchup:
+    """Hypothèses (affichées dans l'IHM) :
+    - chaque interruption adverse en main coupe une ligne de jeu : il faut un starter de plus qu'elles ;
+    - en premier, l'adversaire a 6 cartes ; ton plateau tient si tu gardes au moins une protection,
+      et au moins autant que ses cartes de destruction ;
+    - en second, l'adversaire a 5 cartes et garde ses interruptions pour ton tour."""
+    from .meta import opponent_flags
+    rng = np.random.default_rng(seed)
+    me = _matrix(deck)
+    opp = np.array([[opponent_flags(c)[f] for f in OPP_FLAGS] for c in opp_deck], dtype=np.int8)
+    my_draw = me[np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]]
+    opp_draw = opp[np.argsort(rng.random((n, len(opp_deck))), axis=1)[:, :6]]
+    idx = {f: i for i, f in enumerate(FLAGS)}
+
+    def mine(f, k):
+        return my_draw[:, :k, idx[f]].sum(axis=1)
+
+    first = {f: mine(f, 5) for f in FLAGS}
+    second = {f: mine(f, 6) for f in FLAGS}
+    ht6, br6 = opp_draw[:, :6, 0].sum(axis=1), opp_draw[:, :6, 1].sum(axis=1)
+    ht5 = opp_draw[:, :5, 0].sum(axis=1)
+
+    playable_first, _ = _verdicts(first, True)
+    turn1 = playable_first & (first["starter"] >= ht6 + 1)
+    holds = turn1 & ((first["trap"] + first["interrupt"]) >= np.maximum(1, br6))
+    playable_second, _ = _verdicts(second, False)
+    comeback = playable_second & (second["starter"] >= ht5 + 1)
+    strong = comeback & ((second["interrupt"] + second["breaker"]) >= 1)
+    return Matchup(turn1.mean(), holds.mean(), comeback.mean(), strong.mean(), ht6.mean(), br6.mean())
+
+
+def example_game(deck: list[dict], opp_deck: list[dict], seed: int) -> dict:
+    """Une partie d'exemple : tes mains et celles de l'adversaire, en premier et en second."""
+    rng = np.random.default_rng(seed)
+    pick = lambda d, k: [d[i] for i in rng.permutation(len(d))[:k]]
+    return {"first": (pick(deck, 5), pick(opp_deck, 6)), "second": (pick(deck, 6), pick(opp_deck, 5))}
+
+
+def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool) -> tuple[str, list[str]]:
+    """Verdict d'une partie d'exemple, avec les mêmes règles que matchup()."""
+    from .meta import opponent_flags
+    counts = {f: sum(card_flags(c)[f] for c in my_hand) for f in FLAGS}
+    nm = lambda c: c["name_fr"] or c["name_en"]
+    hts = [nm(c) for c in opp_hand if opponent_flags(c)["handtrap"]]
+    brs = [nm(c) for c in opp_hand if opponent_flags(c)["breaker"]]
+    playable, _ = (bool(v) for v in _verdicts(counts, first))
+    reasons = [f"Tu as {counts['starter']} starter(s) ; l'adversaire tient {len(hts)} interruption(s)"
+               + (f" : {', '.join(hts)}." if hts else ".")]
+    passes = playable and counts["starter"] >= len(hts) + 1
+    if not playable:
+        reasons.append("Ta main ne permet pas de lancer le moteur Mekk.")
+    elif not passes:
+        reasons.append("Chaque interruption coupe une ligne : il te manque un starter de secours.")
+    if first:
+        prot = counts["trap"] + counts["interrupt"]
+        holds = passes and prot >= max(1, len(brs))
+        if passes:
+            reasons.append(f"Protections gardées pour son tour : {prot}"
+                           + (f" ; il a {len(brs)} carte(s) de destruction ({', '.join(brs)})." if brs else "."))
+        verdict = "Plateau qui tient" if holds else "Tour 1 réussi, plateau fragile" if passes else "Tour 1 coupé"
+    else:
+        disrupt = counts["interrupt"] + counts["breaker"]
+        strong = passes and disrupt >= 1
+        if passes:
+            reasons.append("Tu avais de quoi gêner son tour 1." if disrupt else
+                           "Rien pour gêner son tour 1 : tu affrontes son plateau complet.")
+        verdict = "Retour fort" if strong else "Retour possible" if passes else "Retour coupé"
+    return verdict, reasons
+
+
 LEVERS = {
     "Retirer 1 carte hors moteur (deck plus fin)": ("offplan", None),
     "Remplacer 1 carte hors moteur par 1 starter Mekk": ("offplan", "starter"),

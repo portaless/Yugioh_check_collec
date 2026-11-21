@@ -10,6 +10,7 @@ from rapidfuzz import fuzz, process
 
 from ygo import analysis as A
 from ygo import builds, importer
+from ygo import meta
 from ygo import simulation as S
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, ZONES_REV, tr
@@ -26,8 +27,22 @@ div[class*="st-key-tile_"] .stElementContainer:has(.stButton) { position: absolu
 div[class*="st-key-tile_"] .stButton, div[class*="st-key-tile_"] .stButton button {
     width: 100%; height: 100%; opacity: 0; cursor: zoom-in; }
 .card-img { width: 100%; display: block; border-radius: 6px; }
-div[class*="st-key-tile_"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
-div[class*="st-key-tile_"]:hover img { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+div[class*="st-key-tile"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
+div[class*="st-key-tile_"]:hover img, div[class*="st-key-tilet_"] img:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.tile-name { font-size: .85rem; margin-top: .3rem; line-height: 1.3; }
+.tile-badge { opacity: .7; }
+/* Mode texte : image à gauche, texte français à droite ; le bouton invisible ne couvre que l'image */
+div[class*="st-key-tilet_"] { position: relative; }
+div[class*="st-key-tilet_"] .stElementContainer:has(.stButton) {
+    position: absolute; left: 0; top: 0; width: 40%; aspect-ratio: 421 / 614; z-index: 2; margin: 0; }
+div[class*="st-key-tilet_"] .stButton, div[class*="st-key-tilet_"] .stButton button {
+    width: 100%; height: 100%; opacity: 0; cursor: zoom-in; }
+.tile-text-layout { display: grid; grid-template-columns: 40% 1fr; gap: .7rem; align-items: start;
+    padding-bottom: .8rem; border-bottom: 1px solid rgba(128,128,128,.15); }
+.tile-text-layout .tile-name { margin-top: 0; font-size: .95rem; }
+.tile-note { font-size: .75rem; opacity: .6; margin: .2rem 0; }
+.tile-desc { font-size: .85rem; line-height: 1.45; white-space: pre-line; max-height: 15rem; overflow-y: auto;
+    margin-top: .3rem; padding-right: .3rem; }
 div[role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }
 </style>""")
 
@@ -53,8 +68,11 @@ def category(frame: str) -> str:
 
 @st.cache_data
 def catalog() -> pd.DataFrame:
-    df = pd.read_sql("""SELECT c.*, COALESCE(o.owned, 0) AS owned FROM cards c
-                        LEFT JOIN owned o ON o.card_id = c.id""", con)
+    df = pd.read_sql("""SELECT c.*, COALESCE(o.owned, 0) AS owned, r.rarities FROM cards c
+                        LEFT JOIN owned o ON o.card_id = c.id
+                        LEFT JOIN (SELECT card_id, GROUP_CONCAT(DISTINCT rarity) AS rarities FROM collection
+                                   WHERE rarity IS NOT NULL GROUP BY card_id) r ON r.card_id = c.id""", con)
+    df["rarities"] = df["rarities"].fillna("").str.replace(",", ", ")
     df["nom"] = df["name_fr"].fillna(df["name_en"])
     df["catégorie"] = df["frame_type"].map(category)
     df["type_fr"] = df["race"].map(lambda v: tr(RACES, v))
@@ -103,6 +121,7 @@ def card_facts(c) -> dict:
     facts["Archétype"] = c["archétype"]
     facts["Banlist TCG"] = c["banlist"] or "Illimitée"
     facts["En stock"] = int(c["owned"])
+    facts["Rareté"] = c.get("rarities", "")
     if pd.notna(c["price_cm"]):
         facts["Cardmarket"] = f"≈ {c['price_cm']:.2f} €"
     return {k: str(v) for k, v in facts.items() if v not in ("", None)}
@@ -110,6 +129,18 @@ def card_facts(c) -> dict:
 
 def effect_text(c) -> str:
     return c["desc_en"] if pd.isna(c["desc_fr"]) else c["desc_fr"]
+
+
+UNOFFICIAL = {int(i) for i in importer.load_translations()["textes"]}
+
+
+def text_note(c) -> str:
+    """Mention sur l'origine du texte, vide pour un texte officiel français."""
+    if pd.isna(c["desc_fr"]):
+        return "Pas encore de texte français pour cette carte, voici le texte anglais :"
+    if int(c["id"]) in UNOFFICIAL:
+        return "Traduction non officielle (pas encore de texte français officiel) :"
+    return ""
 
 
 VIEWER_HTML = (Path(__file__).parent / "ygo" / "viewer.html").read_text(encoding="utf8")
@@ -123,7 +154,7 @@ def card_dialog(ids: list[int], pos: int):
     window = ids[start:start + VIEWER_WINDOW]
     df = catalog().set_index("id").loc[window].reset_index()
     cards = [{"src": image_src(int(c["id"]), c["image_url"]), "name": c["nom"],
-              "facts": list(card_facts(c).items()), "effect": effect_text(c), "english": bool(pd.isna(c["desc_fr"]))}
+              "facts": list(card_facts(c).items()), "effect": effect_text(c), "note": text_note(c)}
              for c in df.to_dict("records")]
     # "</" échappé pour qu'un texte de carte ne puisse pas fermer la balise <script>
     payload = json.dumps(cards, ensure_ascii=False).replace("</", "<\\/")
@@ -149,15 +180,28 @@ def gallery(df: pd.DataFrame, key: str, per_row: int = 6):
         return
     ids = [int(i) for i in df["id"]]
     records = df.to_dict("records")
+    with_text = st.session_state.get("show_text", False)
+    if with_text:
+        per_row = max(2, per_row // 2)  # chaque vignette porte aussi le texte : moitié moins par ligne
     for i in range(0, len(records), per_row):
         cols = st.columns(per_row)
         for j, (col, c) in enumerate(zip(cols, records[i:i + per_row])):
-            with col, st.container(key=f"tile_{key}_{c['id']}_{i + j}"):
-                card_img(st, c)
-                badge = f" {c['badge']}" if c.get("badge") else ""
-                st.caption(f"**{c['nom']}**{badge}")
+            with col, st.container(key=f"{'tilet' if with_text else 'tile'}_{key}_{c['id']}_{i + j}"):
+                st.html(tile_html(c, with_text))
                 if st.button(c["nom"], key=f"open_{key}_{c['id']}_{i + j}"):
                     open_card(ids, i + j)
+
+
+def tile_html(c, with_text: bool) -> str:
+    src = image_src(int(c["id"]), c["image_url"]) or ""
+    badge = f" <span class='tile-badge'>{escape(str(c['badge']))}</span>" if c.get("badge") else ""
+    img = f"<img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}'>"
+    if not with_text:
+        return f"{img}<div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>"
+    note = text_note(c)
+    note_html = f"<div class='tile-note'>{escape(note.rstrip(' :'))}</div>" if note else ""
+    return (f"<div class='tile-text-layout'>{img}<div><div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>"
+            f"{note_html}<div class='tile-desc'>{escape(effect_text(c))}</div></div></div>")
 
 
 # --------------------------------------------------------------------------- pages
@@ -198,7 +242,8 @@ def page_collection():
         gallery(view.assign(badge="×" + view["owned"].astype(str)), "coll", per_row=per_row)
     with tab_list:
         cols = {"nom": "Nom", "catégorie": "Catégorie", "type_fr": "Type", "attribut": "Attribut", "level": "Niv.",
-                "atk": "ATK", "def": "DEF", "archétype": "Archétype", "banlist": "Banlist", "owned": "Stock"}
+                "atk": "ATK", "def": "DEF", "archétype": "Archétype", "banlist": "Banlist", "owned": "Stock",
+                "rarities": "Rareté"}
         event = st.dataframe(view[list(cols)].rename(columns=cols), hide_index=True, width="stretch",
                              height=460, on_select="rerun", selection_mode="single-row")
         st.caption("Clique sur une ligne pour ouvrir la fiche.")
@@ -665,6 +710,181 @@ Ce modèle ne joue pas les combos en entier : il mesure la régularité des main
                         cards_gallery(items, f"{key}_{zone}", per_row=5)
 
 
+# --------------------------------------------------------------------------- simulation face au méta
+
+META_LISTS_PER_ARCHETYPE = 3  # listes les plus récentes moyennées par archétype
+
+
+def deck_signature(deck_id: int) -> tuple:
+    return tuple(tuple(r) for r in con.execute(
+        "SELECT card_id, zone, quantity FROM deck_cards WHERE deck_id = ? ORDER BY 1, 2", (deck_id,)))
+
+
+@st.cache_data(show_spinner=False)
+def cached_matchup(deck_id: int, signature: tuple, opp_ids: tuple) -> dict:
+    """signature : contenu du deck, pour recalculer dès qu'il change."""
+    deck = S.main_deck(A.deck_cards(con, deck_id))
+    m = S.matchup(deck, meta.resolve(con, list(opp_ids)))
+    return {**vars(m), "index": m.index}
+
+
+def archetype_matchup(deck_id: int, lists: list[dict]) -> dict:
+    sig = deck_signature(deck_id)
+    res = [cached_matchup(deck_id, sig, tuple(l["main"])) for l in lists[:META_LISTS_PER_ARCHETYPE]]
+    return {k: sum(r[k] for r in res) / len(res) for k in res[0]}
+
+
+def tone_for(v: float) -> str:
+    return "good" if v >= .55 else "warn" if v >= .35 else "bad"
+
+
+def page_meta():
+    st.title("Simulation face au méta")
+    data = meta.load()
+    top, btn = st.columns([4, 1])
+    if btn.button("Mettre à jour le méta", type="primary" if not data else "secondary"):
+        with st.spinner("Téléchargement des decks de tournoi…"):
+            meta.download()
+        cached_matchup.clear()
+        st.rerun()
+    if not data:
+        st.info("Aucun deck méta téléchargé : clique sur « Mettre à jour le méta ».")
+        return
+    top.caption(f"{len(data['decks'])} decks classés en tournoi (YGOPRODeck, « Tournament Meta Decks »), "
+                f"téléchargés le {data['downloaded']}.")
+
+    all_arch = meta.archetypes(data)
+    n_arch = st.slider("Archétypes pris en compte (les plus joués)", 3, min(15, len(all_arch)), min(8, len(all_arch)))
+    arch = all_arch[:n_arch]
+    total = sum(len(lists) for _, lists in arch)
+    decks = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks ORDER BY name")}
+
+    with st.expander("Comment est calculé l'indice de matchup ?"):
+        st.markdown(f"""
+Pour chaque archétype, les {META_LISTS_PER_ARCHETYPE} listes les plus récentes sont simulées 10 000 fois contre ton deck.
+On compte les **interruptions depuis la main** de l'adversaire (Floraison de Cendres, Infini Éphémère, Mulcharmy…),
+repérées dans le texte des cartes, et ses **cartes de destruction**.
+
+- **En premier** (toi 5 cartes, lui 6) : chaque interruption adverse coupe une ligne de jeu, il te faut donc
+  *un starter de plus que ses interruptions*. Ton **plateau tient** si tu gardes au moins une protection
+  (Piège ou interruption), et au moins autant que ses cartes de destruction.
+- **En second** (toi 6 cartes, lui 5 qu'il garde pour ton tour) : ton **retour passe** si tu as un starter de
+  plus que ses interruptions. Il est **fort** si tu avais aussi de quoi gêner son tour 1.
+- **Indice de matchup** = moyenne de « plateau qui tient » et « retour fort ».
+
+C'est un **indice de régularité face à ses interruptions, pas un taux de victoire** : le modèle ne joue ni ses
+combos ni les tiens.
+""")
+
+    # 1. Le méta
+    st.header("1. Le méta actuel")
+    rows = []
+    for name, lists in arch:
+        cards = [meta.resolve(con, l["main"]) for l in lists[:META_LISTS_PER_ARCHETYPE]]
+        ht = sum(sum(meta.opponent_flags(c)["handtrap"] for c in cs) / len(cs) * 6 for cs in cards) / len(cards)
+        rows.append({"Archétype": name, "Tops": len(lists), "Part du méta": f"{100 * len(lists) / total:.0f} %",
+                     "Interruptions par main": round(ht, 1),
+                     "Dernier top": f"{lists[0]['tournament']} ({lists[0]['placement']})"})
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+    # 2. Matrice
+    st.header("2. Tes builds face au méta")
+    chosen = st.multiselect("Builds à tester", list(decks), default=list(decks), placeholder="Choisir…")
+    if not chosen:
+        return
+    matrix, weighted = {}, {}
+    with st.spinner("Simulation des matchups…"):
+        for d in chosen:
+            if not S.main_deck(A.deck_cards(con, decks[d])):
+                continue
+            matrix[d] = {a: archetype_matchup(decks[d], lists) for a, lists in arch}
+            weighted[d] = sum(matrix[d][a]["index"] * len(lists) for a, lists in arch) / total
+    if not matrix:
+        st.info("Les builds choisis ont un Main Deck vide.")
+        return
+    cols = st.columns(len(matrix))
+    for col, d in zip(cols, sorted(matrix, key=lambda d: -weighted[d])):
+        status_tile(col, d, f"{100 * weighted[d]:.0f}", tone_for(weighted[d]), "indice face au méta (pondéré par la part)")
+    table = pd.DataFrame({d: {a: matrix[d][a]["index"] for a, _ in arch} for d in matrix}).T
+    table.insert(0, "Méta pondéré", pd.Series(weighted))
+    styled = table.style.format(lambda v: f"{100 * v:.0f}").map(
+        lambda v: f"background-color: {TONES[tone_for(v)][0]}; color: {TONES[tone_for(v)][1]}; font-weight: 600")
+    st.dataframe(styled, width="stretch")
+    st.caption("Lecture : 100 = ton plan passe à chaque fois ; 50 = une fois sur deux. Vert ≥ 55, ambre ≥ 35.")
+
+    # 3. Détail
+    st.header("3. Détail d'un matchup")
+    c1, c2 = st.columns(2)
+    build = c1.selectbox("Ton build", list(matrix), index=list(matrix).index(max(weighted, key=weighted.get)))
+    opp_name = c2.selectbox("Adversaire", [a for a, _ in arch])
+    lists = dict(arch)[opp_name]
+    r = matrix[build][opp_name]
+    k1, k2, k3, k4 = st.columns(4)
+    status_tile(k1, "En premier : ton tour 1 passe", f"{100 * r['turn1']:.0f} %", tone_for(r["turn1"]),
+                "malgré ses interruptions")
+    status_tile(k2, "En premier : ton plateau tient", f"{100 * r['board_holds']:.0f} %", tone_for(r["board_holds"]),
+                "tu gardes une protection")
+    status_tile(k3, "En second : ton retour passe", f"{100 * r['comeback']:.0f} %", tone_for(r["comeback"]),
+                "malgré ses interruptions")
+    status_tile(k4, "En second : retour fort", f"{100 * r['comeback_strong']:.0f} %", tone_for(r["comeback_strong"]),
+                "et tu as gêné son tour 1")
+    st.markdown(f"**{opp_name}** tient en moyenne **{r['opp_handtraps']:.1f} interruption(s)** dans une main de 6 cartes. "
+                f"Avec une seule ligne de jeu, chacune suffit à couper ton tour : c'est la densité de starters "
+                f"qui décide de ce matchup.")
+    others = [d for d in matrix if d != build]
+    if others:
+        st.markdown("Comparé à tes autres builds sur ce matchup : " + " · ".join(
+            f"{d} **{100 * matrix[d][opp_name]['index']:.0f}**" for d in others)
+                    + f" (contre **{100 * r['index']:.0f}** pour {build}).")
+
+    st.subheader("Une partie d'exemple")
+    if st.button("Tirer une nouvelle partie"):
+        st.session_state["meta_seed"] = st.session_state.get("meta_seed", 0) + 1
+    my_deck = S.main_deck(A.deck_cards(con, decks[build]))
+    opp_deck = meta.resolve(con, lists[0]["main"])
+    game = S.example_game(my_deck, opp_deck, st.session_state.get("meta_seed", 0))
+    for label, key, first in (("Tu commences", "first", True), ("Tu joues en second", "second", False)):
+        mine, theirs = game[key]
+        verdict, reasons = S.describe_game(mine, theirs, first)
+        good = verdict in ("Plateau qui tient", "Retour fort")
+        ok = verdict in ("Tour 1 réussi, plateau fragile", "Retour possible")
+        bg, fg = TONES["good" if good else "warn" if ok else "bad"]
+        st.markdown(f"#### {label}")
+        st.html(f"<span style='background:{bg}; color:{fg}; font-weight:700; padding:.2rem .8rem; "
+                f"border-radius:999px'>{verdict}</span>")
+        left, right = st.columns(2, gap="large")
+        with left:
+            st.markdown(f"**Ta main ({build})**")
+            cards_gallery([(c["id"], "") for c in mine], f"meta_me_{key}", per_row=6)
+        with right:
+            st.markdown(f"**Sa main ({opp_name})**")
+            cards_gallery([(c["id"], "interruption" if meta.opponent_flags(c)["handtrap"] else "")
+                           for c in theirs], f"meta_opp_{key}", per_row=6)
+        st.markdown("\n".join(f"- {x}" for x in reasons))
+
+    with st.expander(f"Liste type de {opp_name} ({lists[0]['tournament']}, {lists[0]['placement']})"):
+        st.markdown(f"[Voir la liste sur YGOPRODeck]({lists[0]['url']})")
+        counts = {}
+        for c in opp_deck:
+            counts[c["id"]] = counts.get(c["id"], 0) + 1
+        cards_gallery([(i, f"×{q}") for i, q in counts.items()], "meta_list", per_row=8)
+
+    # 4. Conclusions
+    st.header("4. Ce qu'il faut retenir")
+    for d in sorted(matrix, key=lambda d: -weighted[d]):
+        best = max(arch, key=lambda a: matrix[d][a[0]]["index"])[0]
+        worst = min(arch, key=lambda a: matrix[d][a[0]]["index"])[0]
+        st.markdown(f"- **{d}** : indice méta **{100 * weighted[d]:.0f}**. Meilleur matchup : {best} "
+                    f"({100 * matrix[d][best]['index']:.0f}) ; le plus dur : {worst} "
+                    f"({100 * matrix[d][worst]['index']:.0f}, {matrix[d][worst]['opp_handtraps']:.1f} interruptions par main).")
+    if len(matrix) > 1:
+        ranked = sorted(matrix, key=lambda d: -weighted[d])
+        a, b = ranked[0], ranked[-1]
+        gains = sorted(((matrix[a][x]["index"] - matrix[b][x]["index"], x) for x, _ in arch), reverse=True)
+        st.markdown(f"**{a}** devance **{b}** de {100 * (weighted[a] - weighted[b]):.0f} points sur le méta pondéré. "
+                    f"L'écart le plus net : {gains[0][1]} (+{100 * gains[0][0]:.0f}).")
+
+
 def page_corrections():
     st.title("Corrections de reconnaissance")
     st.caption("Lignes de l'Excel non reconnues ou reconnues de façon approximative. "
@@ -686,12 +906,12 @@ def page_corrections():
         correction_form(r["excel_name"], f"{r['location']} ×{r['quantity']} → {status}")
 
     st.subheader("Corrections enregistrées")
-    st.caption("Tu peux revenir sur une correction ici.")
     saved = con.execute("""SELECT o.excel_name, c.name_fr, c.name_en FROM name_overrides o
                            JOIN cards c ON c.id = o.card_id ORDER BY o.excel_name""").fetchall()
-    for r in saved:
-        with st.expander(f"{r['excel_name']}  →  {r['name_fr'] or r['name_en']}"):
-            correction_form(r["excel_name"], None)
+    labels = {r["excel_name"]: f"{r['excel_name']}  →  {r['name_fr'] or r['name_en']}" for r in saved}
+    picked = st.selectbox("Correction à revoir", [None, *labels], format_func=lambda k: "—" if k is None else labels[k])
+    if picked:
+        correction_form(picked, None)
 
 
 def correction_form(excel_name: str, status: str | None):
@@ -770,11 +990,139 @@ def page_import():
         if missing:
             st.dataframe(pd.DataFrame(missing), hide_index=True)
 
+    st.divider()
+    tab_excel, tab_ban, tab_build = st.tabs(["Format de l'Excel", "La banlist", "Comment est calculé un build"])
+    with tab_excel:
+        explain_excel()
+    with tab_ban:
+        explain_banlist()
+    with tab_build:
+        explain_build()
+
+
+def explain_excel():
+    st.markdown("""
+#### Une feuille = un emplacement
+Chaque feuille du classeur représente un endroit où sont rangées tes cartes (`Arc-v`, `classeur`, `boite A`…).
+Ton stock total d'une carte est la **somme de toutes les feuilles**.
+Une feuille dont le nom commence par **`deck_`** (ex. `deck_mekk_beta`) est en plus importée comme **deck** :
+ses cartes comptent dans ton stock *et* forment un deck dans le Constructeur.
+
+#### Les colonnes
+La première ligne doit contenir les en-têtes ci-dessous. Seules quelques colonnes sont lues : toutes les autres
+informations (type, effet, banlist…) viennent du catalogue officiel, inutile de les remplir.
+""")
+    st.dataframe(pd.DataFrame([
+        {"Colonne": "carte", "Utilisée": "Oui", "Rôle": "Nom de la carte, en français ou en anglais. Les fautes et "
+                                                       "les accents manquants sont tolérés."},
+        {"Colonne": "nombre", "Utilisée": "Oui", "Rôle": "Nombre d'exemplaires (1 si vide)."},
+        {"Colonne": "magie / piège / monstre", "Utilisée": "Aide", "Rôle": "Un « x » dans la bonne colonne aide à "
+                                                                         "distinguer deux cartes au nom proche."},
+        {"Colonne": "fusion / synchro / xyz / link", "Utilisée": "Aide", "Rôle": "Un « x » indique un monstre "
+                                                                               "d'Extra Deck (même usage)."},
+        {"Colonne": "étoile", "Utilisée": "Aide", "Rôle": "Niveau, Rang ou valeur Lien : départage les homonymes."},
+        {"Colonne": "rareté", "Utilisée": "Oui", "Rôle": "Rareté de ton exemplaire (Commune, Rare, Super Rare, "
+                                                         "Ultra Rare, Secret Rare, Starlight…), texte libre. Pour une "
+                                                         "même carte en deux raretés, fais deux lignes."},
+        {"Colonne": "pendule, ban, limitation, effet, contexte, type", "Utilisée": "Non",
+         "Rôle": "Ignorées : remplies automatiquement depuis le catalogue."},
+    ]), hide_index=True, width="stretch")
+    st.markdown("""
+#### Exemple
+| carte | magie | piège | monstre | synchro | étoile | nombre | rareté |
+|---|---|---|---|---|---|---|---|
+| Ciel Bleu Mekk-Chevalier | | | x | | 5 | 3 | Commune |
+| Infini Éphémère | | x | | | | 2 | Secret Rare |
+| Infini Éphémère | | x | | | | 1 | Starlight |
+| Artilleur Hyper Psychique | | | x | x | 9 | 2 | Super Rare |
+
+#### Reconnaissance des noms
+Chaque nom est comparé aux 14 000+ cartes du catalogue (noms français et anglais). Au-dessus de 95/100 de
+ressemblance, la carte est reconnue automatiquement ; en dessous, elle part dans la page **Corrections**, où ton
+choix est enregistré dans `corrections.json` pour tous les imports suivants. Une même carte présente sur plusieurs
+lignes d'une feuille voit ses quantités additionnées.
+""")
+    sheets = con.execute("""SELECT location, COUNT(*) AS lignes, SUM(quantity) AS cartes,
+                            SUM(card_id IS NULL) AS non_reconnues FROM collection GROUP BY location""").fetchall()
+    if sheets:
+        st.markdown("#### Ton fichier actuel")
+        st.dataframe(pd.DataFrame([{"Feuille": r["location"], "Lignes": r["lignes"], "Exemplaires": r["cartes"],
+                                    "Non reconnues": r["non_reconnues"]} for r in sheets]), hide_index=True)
+
+
+def explain_banlist():
+    catalog_file = importer.DATA_DIR / "cards_en.json"
+    from datetime import datetime
+    updated = datetime.fromtimestamp(catalog_file.stat().st_mtime).strftime("%d/%m/%Y") if catalog_file.exists() else "?"
+    st.markdown(f"""
+#### D'où vient la banlist ?
+La banlist est celle du **TCG** (format des tournois officiels en Europe et en Amérique). Elle est fournie
+avec le catalogue YGOPRODeck, mis à jour le **{updated}**. Konami la change plusieurs fois par an : le bouton
+« Mettre à jour le catalogue » ci-dessus récupère la dernière version.
+
+#### Les statuts
+| Statut | Exemplaires autorisés dans Main + Extra + Side |
+|---|---|
+| Illimitée | 3 |
+| Semi-Limitée | 2 |
+| Limitée | 1 |
+| Interdite | 0 : la carte rend le deck illégal |
+
+Le statut est affiché sur chaque fiche de carte. Le Constructeur et l'Analyse signalent un deck qui dépasse ces limites.
+""")
+    rows = con.execute("""SELECT c.name_fr, c.name_en, c.ban_tcg, o.owned FROM owned o JOIN cards c ON c.id = o.card_id
+                          WHERE c.ban_tcg IS NOT NULL ORDER BY c.ban_tcg, c.name_fr""").fetchall()
+    if rows:
+        st.markdown("#### Tes cartes concernées")
+        st.dataframe(pd.DataFrame([{"Carte": r["name_fr"] or r["name_en"], "Statut": tr(BANLIST, r["ban_tcg"]),
+                                    "Autorisées": A.BAN_LIMIT.get(r["ban_tcg"], 3), "En stock": r["owned"]}
+                                   for r in rows]), hide_index=True, width="stretch")
+
+
+def explain_build():
+    st.markdown("""
+#### Ce n'est pas une boîte noire
+La proposition `mekk_opti` n'a pas été générée par un algorithme qui essaie toutes les combinaisons. Je
+(Claude) l'ai construite en raisonnant sur le **texte officiel des cartes**, puis je l'ai **vérifiée par simulation**.
+Toutes les étapes sont reproductibles dans l'IHM :
+
+**1. Les contraintes, non négociables**
+- Uniquement des cartes de **ton stock** (quantité possédée, toutes feuilles confondues).
+- La **banlist TCG** (voir l'onglet précédent).
+- Le règlement : Main Deck de 40 à 60 cartes, Extra et Side Deck de 15 maximum.
+
+**2. Le rôle de chaque carte**
+Chaque carte reçoit un rôle (page Analyse, section 2) : *monstre Mekk-Chevalier* (starter), *Héritage du Monde*,
+*interruption depuis la main*, *destruction du terrain*, *moteur Psychique*, *autre*.
+
+**3. Les principes de construction**
+- **40 cartes** : plus le deck est fin, plus tu pioches tes starters. À 61 cartes, chaque carte faible dilue les bonnes.
+- **Densité de starters** : environ 40 % de cartes capables de lancer le jeu (Mekk-Chevaliers + Mémoire).
+- **Protections et interruptions** : 8 à 12 cartes pour gêner l'adversaire ou protéger ton plateau.
+- **Pas de carte hors plan** : une carte qui ne sert ni le moteur Mekk ni l'interaction est retirée.
+- L'**Extra Deck** suit les invocations réellement possibles avec tes monstres (Girsu Syntoniseur, Liens génériques…).
+
+**4. La vérification par les chiffres**
+- **Analyse** : probabilités exactes (loi hypergéométrique) d'avoir tel type de carte en main.
+- **Duel de decks** : 20 000 mains simulées par deck, avec un écart déclaré gagnant seulement s'il dépasse la
+  marge d'erreur. La section *Leviers* teste une modification à la fois et montre celle qui rapporte le plus.
+- **Simulation méta** : régularité face aux interruptions des decks qui gagnent actuellement en tournoi.
+
+**5. Pour obtenir un autre build**
+- Duplique un deck dans le **Constructeur**, modifie-le, puis compare-le dans **Duel de decks** et **Simulation méta**.
+- Ou demande-le moi dans la conversation, par exemple « un build Mekk qui joue mieux en premier » ou « un build
+  sans Pot de la Prospérité ». J'applique les mêmes étapes, je l'enregistre comme nouveau deck et je te montre
+  les chiffres face à tes builds existants.
+""")
+
 
 PAGES = {"Collection": page_collection, "Constructeur de deck": page_builder, "Analyse": page_analysis,
-         "Duel de decks": page_duel,
+         "Duel de decks": page_duel, "Simulation méta": page_meta,
          "Corrections": page_corrections, "Import": page_import}
 page = st.sidebar.radio("Navigation", list(PAGES))
+st.sidebar.toggle("Textes", value=False, key="show_text",
+                  help="Affiche l'effet en français à droite de chaque carte dans les galeries. "
+                       "Le texte est toujours visible en cliquant sur une carte.")
 unmatched = con.execute("SELECT COUNT(*) FROM collection WHERE card_id IS NULL").fetchone()[0]
 if unmatched:
     st.sidebar.warning(f"{unmatched} carte(s) non reconnue(s) → page Corrections")

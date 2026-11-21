@@ -31,6 +31,12 @@ CREATE TABLE IF NOT EXISTS cards (
 );
 CREATE INDEX IF NOT EXISTS idx_cards_archetype ON cards(archetype);
 
+-- Codes d'illustrations alternatives (ex. une autre version de Floraison de Cendres) -> carte principale
+CREATE TABLE IF NOT EXISTS card_alias (
+    alias_id INTEGER PRIMARY KEY,
+    card_id  INTEGER NOT NULL
+);
+
 -- Une ligne par carte et par emplacement (feuille Excel : classeur, boîte, deck...)
 CREATE TABLE IF NOT EXISTS collection (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +44,8 @@ CREATE TABLE IF NOT EXISTS collection (
     excel_name   TEXT NOT NULL,
     location     TEXT NOT NULL,
     quantity     INTEGER NOT NULL DEFAULT 1,
-    match_score  REAL
+    match_score  REAL,
+    rarity       TEXT                            -- colonne « rareté » de l'Excel, libre
 );
 
 -- Corrections manuelles de reconnaissance, conservées entre deux imports
@@ -76,6 +83,9 @@ def connect(path: Path = DB_PATH) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(SCHEMA)
+    # bases créées avant l'ajout de la rareté
+    if "rarity" not in {r["name"] for r in con.execute("PRAGMA table_info(collection)")}:
+        con.execute("ALTER TABLE collection ADD COLUMN rarity TEXT")
     return con
 
 

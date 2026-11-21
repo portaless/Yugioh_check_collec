@@ -18,6 +18,7 @@ from .db import DATA_DIR, ROOT, connect, is_extra
 API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 EXCEL_PATH = ROOT / "yugioh.xlsx"
 CORRECTIONS_PATH = ROOT / "corrections.json"
+TRANSLATIONS_PATH = ROOT / "traductions.json"
 DECK_SHEET_PREFIX = "deck_"
 MIN_SCORE = 95  # en dessous, la carte reste "non reconnue" et se corrige dans l'IHM
 
@@ -53,6 +54,9 @@ def load_catalog(con) -> int:
     con.execute("DELETE FROM cards WHERE id NOT IN (SELECT card_id FROM collection WHERE card_id IS NOT NULL)"
                 " AND id NOT IN (SELECT card_id FROM deck_cards) AND id NOT IN (SELECT card_id FROM name_overrides)")
     con.executemany("INSERT OR REPLACE INTO cards VALUES (" + ",".join("?" * 20) + ")", rows)
+    con.execute("DELETE FROM card_alias")
+    con.executemany("INSERT OR IGNORE INTO card_alias VALUES (?, ?)",
+                    [(img["id"], c["id"]) for c in en for img in c["card_images"] if img["id"] != c["id"]])
     con.commit()
     return len(rows)
 
@@ -118,7 +122,8 @@ def read_excel(path: Path = EXCEL_PATH) -> dict[str, list[dict]]:
     sheets = {}
     for ws in wb.worksheets:
         rows = list(ws.iter_rows(values_only=True))
-        header = [str(h).strip() if h else "" for h in rows[0]]
+        # en-têtes en minuscules, accent de « rareté » facultatif
+        header = [str(h).strip().lower().replace("rarete", "rareté") if h else "" for h in rows[0]]
         sheets[ws.title.strip()] = [
             dict(zip(header, r)) for r in rows[1:] if r[0] and str(r[0]).strip()
         ]
@@ -148,8 +153,9 @@ def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
             card_id, score = matcher.match(name, _category(row), level)
             if score < MIN_SCORE:
                 card_id = None
-            con.execute("INSERT INTO collection (card_id, excel_name, location, quantity, match_score)"
-                        " VALUES (?, ?, ?, ?, ?)", (card_id, name, sheet, qty, score))
+            rarity = str(row.get("rareté") or "").strip() or None
+            con.execute("INSERT INTO collection (card_id, excel_name, location, quantity, match_score, rarity)"
+                        " VALUES (?, ?, ?, ?, ?, ?)", (card_id, name, sheet, qty, score, rarity))
             report.append({"sheet": sheet, "excel": name, "card_id": card_id, "score": score})
             if card_id:
                 qty_by_card[card_id] += qty
@@ -160,13 +166,26 @@ def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
     return report
 
 
+def load_translations() -> dict:
+    if not TRANSLATIONS_PATH.exists():
+        return {"noms": {}, "textes": {}}
+    return json.loads(TRANSLATIONS_PATH.read_text(encoding="utf8"))
+
+
 def fill_missing_french_names(con) -> None:
-    """Cartes récentes sans traduction dans l'API : on reprend le nom écrit dans l'Excel."""
+    """Cartes récentes sans traduction dans l'API : nom et texte de traductions.json,
+    sinon nom écrit dans l'Excel."""
     rows = con.execute("""SELECT c.id, MIN(col.excel_name) AS excel_name FROM cards c
                           JOIN collection col ON col.card_id = c.id
                           WHERE c.name_fr IS NULL GROUP BY c.id""").fetchall()
     con.executemany("UPDATE cards SET name_fr = ? WHERE id = ?",
                     [(r["excel_name"][:1].upper() + r["excel_name"][1:], r["id"]) for r in rows])
+    tr = load_translations()
+    # les noms traduits remplacent ceux de l'Excel, mais jamais un nom officiel (desc_fr présent = carte traduite par Konami)
+    con.executemany("UPDATE cards SET name_fr = ? WHERE id = ? AND desc_fr IS NULL",
+                    [(name, int(i)) for i, name in tr["noms"].items()])
+    con.executemany("UPDATE cards SET desc_fr = ? WHERE id = ? AND desc_fr IS NULL",
+                    [(text, int(i)) for i, text in tr["textes"].items()])
 
 
 def save_deck_from_counts(con, name: str, counts: dict[int, int]) -> int:
