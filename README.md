@@ -18,6 +18,7 @@ Base SQLite de ma collection (source : `yugioh.xlsx`) enrichie avec le catalogue
 - `ygo/builds.py` : proposition de build Mekk-Chevalier construite avec le stock.
 - `traductions.json` : noms et textes français (non officiels) des cartes que l'API n'a pas encore en français.
 - `ygo/simulation.py` : simulation des mains de départ (page Duel de decks) et des matchups (page Simulation méta).
+- `ygo/optimizer.py` : générateur de build (recuit simulé sous contraintes de stock et de banlist, page Générateur de build).
 - `ygo/meta.py` : decks de tournoi récents (YGOPRODeck) ; `python -m ygo.meta` les retélécharge.
 - Colonnes de l'Excel lues : `carte`, `nombre`, `rareté`, et en aide à la reconnaissance `magie`/`piège`/`monstre`,
   `fusion`/`synchro`/`xyz`/`link`, `étoile` (détails dans la page Import).
