@@ -27,22 +27,10 @@ div[class*="st-key-tile_"] .stElementContainer:has(.stButton) { position: absolu
 div[class*="st-key-tile_"] .stButton, div[class*="st-key-tile_"] .stButton button {
     width: 100%; height: 100%; opacity: 0; cursor: zoom-in; }
 .card-img { width: 100%; display: block; border-radius: 6px; }
-div[class*="st-key-tile"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
-div[class*="st-key-tile_"]:hover img, div[class*="st-key-tilet_"] img:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+div[class*="st-key-tile_"] img { transition: transform .15s ease, box-shadow .15s ease; border-radius: 4px; }
+div[class*="st-key-tile_"]:hover img { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
 .tile-name { font-size: .85rem; margin-top: .3rem; line-height: 1.3; }
 .tile-badge { opacity: .7; }
-/* Mode texte : image à gauche, texte français à droite ; le bouton invisible ne couvre que l'image */
-div[class*="st-key-tilet_"] { position: relative; }
-div[class*="st-key-tilet_"] .stElementContainer:has(.stButton) {
-    position: absolute; left: 0; top: 0; width: 40%; aspect-ratio: 421 / 614; z-index: 2; margin: 0; }
-div[class*="st-key-tilet_"] .stButton, div[class*="st-key-tilet_"] .stButton button {
-    width: 100%; height: 100%; opacity: 0; cursor: zoom-in; }
-.tile-text-layout { display: grid; grid-template-columns: 40% 1fr; gap: .7rem; align-items: start;
-    padding-bottom: .8rem; border-bottom: 1px solid rgba(128,128,128,.15); }
-.tile-text-layout .tile-name { margin-top: 0; font-size: .95rem; }
-.tile-note { font-size: .75rem; opacity: .6; margin: .2rem 0; }
-.tile-desc { font-size: .85rem; line-height: 1.45; white-space: pre-line; max-height: 15rem; overflow-y: auto;
-    margin-top: .3rem; padding-right: .3rem; }
 div[role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }
 </style>""")
 
@@ -180,28 +168,20 @@ def gallery(df: pd.DataFrame, key: str, per_row: int = 6):
         return
     ids = [int(i) for i in df["id"]]
     records = df.to_dict("records")
-    with_text = st.session_state.get("show_text", False)
-    if with_text:
-        per_row = max(2, per_row // 2)  # chaque vignette porte aussi le texte : moitié moins par ligne
     for i in range(0, len(records), per_row):
         cols = st.columns(per_row)
         for j, (col, c) in enumerate(zip(cols, records[i:i + per_row])):
-            with col, st.container(key=f"{'tilet' if with_text else 'tile'}_{key}_{c['id']}_{i + j}"):
-                st.html(tile_html(c, with_text))
+            with col, st.container(key=f"tile_{key}_{c['id']}_{i + j}"):
+                st.html(tile_html(c))
                 if st.button(c["nom"], key=f"open_{key}_{c['id']}_{i + j}"):
                     open_card(ids, i + j)
 
 
-def tile_html(c, with_text: bool) -> str:
+def tile_html(c) -> str:
     src = image_src(int(c["id"]), c["image_url"]) or ""
     badge = f" <span class='tile-badge'>{escape(str(c['badge']))}</span>" if c.get("badge") else ""
-    img = f"<img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}'>"
-    if not with_text:
-        return f"{img}<div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>"
-    note = text_note(c)
-    note_html = f"<div class='tile-note'>{escape(note.rstrip(' :'))}</div>" if note else ""
-    return (f"<div class='tile-text-layout'>{img}<div><div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>"
-            f"{note_html}<div class='tile-desc'>{escape(effect_text(c))}</div></div></div>")
+    return (f"<img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}'>"
+            f"<div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>")
 
 
 # --------------------------------------------------------------------------- pages
@@ -1120,9 +1100,6 @@ PAGES = {"Collection": page_collection, "Constructeur de deck": page_builder, "A
          "Duel de decks": page_duel, "Simulation méta": page_meta,
          "Corrections": page_corrections, "Import": page_import}
 page = st.sidebar.radio("Navigation", list(PAGES))
-st.sidebar.toggle("Textes", value=False, key="show_text",
-                  help="Affiche l'effet en français à droite de chaque carte dans les galeries. "
-                       "Le texte est toujours visible en cliquant sur une carte.")
 unmatched = con.execute("SELECT COUNT(*) FROM collection WHERE card_id IS NULL").fetchone()[0]
 if unmatched:
     st.sidebar.warning(f"{unmatched} carte(s) non reconnue(s) → page Corrections")
