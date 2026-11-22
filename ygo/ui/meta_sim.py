@@ -50,7 +50,13 @@ def page_meta():
     top.caption(f"{len(data['decks'])} decks classés en tournoi (YGOPRODeck, « Tournament Meta Decks »), "
                 f"téléchargés le {data['downloaded']}.")
 
-    all_arch = meta.archetypes(data)
+    # listes dont les cartes manquent au catalogue local (catalogue absent ou plus ancien que le méta) : ignorées
+    all_arch = [(name, kept) for name, lists in meta.archetypes(data)
+                if (kept := [l for l in lists if len(meta.resolve(con, l["main"])) >= 40])]
+    if not all_arch:
+        st.warning("Les cartes des decks méta sont absentes du catalogue : clique sur « Mettre à jour le catalogue » "
+                   "dans la page **Import**.")
+        return
     n_arch = st.slider("Archétypes pris en compte (les plus joués)", 3, min(15, len(all_arch)), min(8, len(all_arch)))
     arch = all_arch[:n_arch]
     total = sum(len(lists) for _, lists in arch)

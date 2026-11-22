@@ -6,7 +6,8 @@ import streamlit as st
 
 st.set_page_config(page_title="Ma collection Yu-Gi-Oh!", page_icon="🃏", layout="wide")
 
-from ygo.ui.collection import page_builder, page_collection  # noqa: E402  (après set_page_config)
+from ygo.ui.bourse import page_bourse  # noqa: E402  (après set_page_config)
+from ygo.ui.collection import page_builder, page_collection  # noqa: E402
 from ygo.ui.core import con  # noqa: E402
 from ygo.ui.data import page_corrections, page_import  # noqa: E402
 from ygo.ui.deck_analysis import page_analysis  # noqa: E402
@@ -22,6 +23,7 @@ pages = {
     "Ma collection": [
         st.Page(page_collection, title="Collection", icon=":material/style:", url_path="collection", default=True),
         st.Page(page_builder, title="Constructeur de deck", icon=":material/construction:", url_path="constructeur"),
+        st.Page(page_bourse, title="Bourse", icon=":material/trending_up:", url_path="bourse"),
     ],
     "Analyse": [
         st.Page(page_analysis, title="Analyse", icon=":material/insights:", url_path="analyse"),

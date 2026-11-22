@@ -36,9 +36,11 @@ SEARCH_URL = "https://www.cardmarket.com/fr/YuGiOh/Products/Search?searchString=
 MIN_JACCARD = 0.5  # en dessous, l'extension Cardmarket n'est pas reconnue (promos isolées) : pas de prix
 
 
-def download(force: bool = False) -> None:
+def download(force: bool = False, only: tuple[str, ...] = tuple(FILES)) -> None:
     CM_DIR.mkdir(parents=True, exist_ok=True)
     for name, url in FILES.items():
+        if name not in only:
+            continue
         path = CM_DIR / f"{name}.json"
         if path.exists() and not force:
             continue
@@ -131,10 +133,26 @@ def _expansions(products, sets_by_name, ct_index) -> dict[str, int]:
     return mapping
 
 
+def load_guide() -> tuple[str, dict[int, dict]]:
+    """Guide des prix téléchargé : (date de publication AAAA-MM-JJ, {idProduct: prix})."""
+    data = json.loads((CM_DIR / "prices.json").read_text(encoding="utf8"))
+    return data["createdAt"][:10], {g["idProduct"]: g for g in data["priceGuides"]}
+
+
+def refresh_prices(con) -> str:
+    """Retélécharge seulement le guide des prix et met à jour cm_products, sans tout recalculer."""
+    download(force=True, only=("prices",))
+    day, guide = load_guide()
+    con.executemany("UPDATE cm_products SET trend = ?, low = ?, avg30 = ? WHERE id = ?",
+                    [(g.get("trend"), g.get("low"), g.get("avg30"), pid) for pid, g in guide.items()])
+    con.commit()
+    return day
+
+
 def build(con, log=print) -> dict:
     """Recalcule les tables cm_products et printings."""
     products = json.loads((CM_DIR / "products.json").read_text(encoding="utf8"))["products"]
-    guide = {g["idProduct"]: g for g in json.loads((CM_DIR / "prices.json").read_text(encoding="utf8"))["priceGuides"]}
+    _, guide = load_guide()
     cards = json.loads((DATA_DIR / "cards_en.json").read_text(encoding="utf8"))["data"]
     ct_index = cardtrader.load_index()
     choices = load_choices()
@@ -284,8 +302,8 @@ def _versions(prints: list[dict], rows) -> list[dict]:
     return sorted(out, key=lambda v: R.rank(v["rarity"] or ""))
 
 
-def collection_value(con) -> dict[int, float]:
-    """Valeur de chaque carte possédée, au prix de ses raretés (prix global YGOPRODeck à défaut)."""
+def owned_by_card(con) -> dict[int, list[dict]]:
+    """Exemplaires possédés de chaque carte, regroupés par version (voir _versions), en deux requêtes."""
     prints, rows = defaultdict(list), defaultdict(list)
     for r in con.execute("""SELECT p.card_id, p.set_name, p.set_code, p.rarity, p.cm_product, p.confidence,
                                    m.trend, m.low, m.avg30
@@ -295,11 +313,16 @@ def collection_value(con) -> dict[int, float]:
     for r in con.execute("""SELECT card_id, rarity, set_code, SUM(quantity) AS qty FROM collection
                             WHERE card_id IS NOT NULL GROUP BY card_id, rarity, set_code"""):
         rows[r["card_id"]].append(r)
+    return {card_id: _versions(prints[card_id], card_rows) for card_id, card_rows in rows.items()}
+
+
+def collection_value(con) -> dict[int, float]:
+    """Valeur de chaque carte possédée, au prix de ses raretés (prix global YGOPRODeck à défaut)."""
     fallback = dict(con.execute("SELECT id, price_cm FROM cards WHERE id IN (SELECT card_id FROM collection)").fetchall())
     values = {}
-    for card_id, card_rows in rows.items():
+    for card_id, versions in owned_by_card(con).items():
         total = 0.0
-        for v in _versions(prints[card_id], card_rows):
+        for v in versions:
             price = v["print"]["trend"] if v["print"] and v["print"]["trend"] is not None else fallback.get(card_id)
             total += v["qty"] * (price or 0)
         values[card_id] = total

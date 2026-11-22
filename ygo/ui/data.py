@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from ygo import analysis as A
+from ygo import bourse
 from ygo import builds
 from ygo import cardmarket as CM
 from ygo import cardtrader
@@ -181,6 +182,7 @@ def page_import():
                 cardtrader.download(log=lambda _: None)
             CM.download(force=True)
             stats = CM.build(con, log=lambda _: None)
+            bourse.record_current(con)
         st.success("Prix à jour : " + ", ".join(f"{v} {k}" for k, v in sorted(stats.items())) + " (toutes cartes).")
     if c4.button("Recréer la proposition de build"):
         builds.create(con)
