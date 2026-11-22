@@ -223,7 +223,7 @@ informations (type, effet, banlist…) viennent du catalogue officiel, inutile d
         {"Colonne": "carte", "Utilisée": "Oui", "Rôle": "Nom de la carte, en français ou en anglais. Les fautes et "
                                                        "les accents manquants sont tolérés."},
         {"Colonne": "nombre", "Utilisée": "Oui", "Rôle": "Nombre d'exemplaires (1 si vide). Une carte notée sur plusieurs lignes "
-                                                                  "identiques est regroupée en une seule, quantités additionnées."},
+                                                                  "identiques est regroupée en une seule, quantités additionnées (dans l'Excel aussi)."},
         {"Colonne": "magie / piège / monstre", "Utilisée": "Aide", "Rôle": "Un « x » dans la bonne colonne aide à "
                                                                          "distinguer deux cartes au nom proche."},
         {"Colonne": "fusion / synchro / xyz / link", "Utilisée": "Aide", "Rôle": "Un « x » indique un monstre "

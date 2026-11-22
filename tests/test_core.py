@@ -3,7 +3,7 @@ import pytest
 from ygo import analysis as A
 from ygo import optimizer as O
 from ygo import simulation as S
-from ygo.importer import Matcher, merge_rows, normalize
+from ygo.importer import Matcher, merge_rows, normalize, tidy_excel
 
 
 # ----------------------------------------------------------------- import / reconnaissance
@@ -18,6 +18,19 @@ def test_identical_rows_are_merged_with_summed_quantity():
             {"carte": "Raigeki", "nombre": None, "rareté": "Super Rare", "code": "LOB"}]
     merged = merge_rows(rows)
     assert [(r["rareté"], r["nombre"]) for r in merged] == [("Commune", 3), ("Super Rare", None)]
+
+
+def test_tidy_excel_merges_identical_rows_in_the_file(tmp_path):
+    import openpyxl
+    path = tmp_path / "c.xlsx"
+    wb = openpyxl.Workbook()
+    for row in (["carte", "nombre", "rareté"], ["Raigeki", 1, "Commune"], ["Pot de Cupidité", 2, None],
+                ["raigeki", 2, "Commune"], ["Raigeki", 1, "Ultra Rare"]):
+        wb.active.append(row)
+    wb.save(path)
+    assert tidy_excel(path) == 1
+    rows = list(openpyxl.load_workbook(path).active.iter_rows(min_row=2, values_only=True))
+    assert rows == [("Raigeki", 3, "Commune"), ("Pot de Cupidité", 2, None), ("Raigeki", 1, "Ultra Rare")]
 
 
 def test_matcher_tolerates_typos_and_uses_french_names(con):

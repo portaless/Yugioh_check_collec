@@ -43,7 +43,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 - Une feuille Excel = un emplacement (`Arc-v`, `classeur`, `boite A`…). Les feuilles `deck_…` sont aussi importées comme decks.
 - Colonnes lues : `carte`, `nombre`, `rareté`, `code` (facultatif, ex. `CRMS-FR042`), et en aide à la reconnaissance `magie`/`piège`/`monstre`,
   `fusion`/`synchro`/`xyz`/`link`, `étoile` (détails dans la page Import).
-- Une même carte peut être notée sur plusieurs lignes : les lignes identiques (hors `nombre`) sont regroupées et leurs quantités additionnées.
+- Une même carte peut être notée sur plusieurs lignes : les lignes identiques (hors `nombre`) sont regroupées et leurs quantités additionnées, dans la base comme dans l'Excel (si le fichier n'est pas ouvert).
 - `corrections.json` : noms de l'Excel associés à la bonne carte (rempli à la main ou depuis la page **Corrections**).
 - `versions_cardmarket.json` : produit Cardmarket choisi à la main quand la rareté d'un produit est incertaine.
 - `data/cardtrader_token.txt` (facultatif, non versionné) : jeton API CardTrader, pour la rareté exacte des produits.

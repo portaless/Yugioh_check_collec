@@ -118,29 +118,71 @@ class Matcher:
         return best, round(best_score, 1)
 
 
+def _header(first_row) -> list[str]:
+    # en-têtes en minuscules, accent de « rareté » facultatif
+    return [str(h).strip().lower().replace("rarete", "rareté") if h else "" for h in first_row]
+
+
 def read_excel(path: Path = EXCEL_PATH) -> dict[str, list[dict]]:
     wb = openpyxl.load_workbook(path, data_only=True)
     sheets = {}
     for ws in wb.worksheets:
         rows = list(ws.iter_rows(values_only=True))
-        # en-têtes en minuscules, accent de « rareté » facultatif
-        header = [str(h).strip().lower().replace("rarete", "rareté") if h else "" for h in rows[0]]
+        header = _header(rows[0])
         sheets[ws.title.strip()] = [
             dict(zip(header, r)) for r in rows[1:] if r[0] and str(r[0]).strip()
         ]
     return sheets
 
 
+def _row_key(row: dict) -> tuple:
+    """Même nom et mêmes infos hors quantité (casse, accents et espaces ignorés)."""
+    return tuple(normalize(str(v)) if v is not None else "" for k, v in sorted(row.items()) if k and k != "nombre")
+
+
 def merge_rows(rows: list[dict]) -> list[dict]:
-    """Lignes identiques (même nom, mêmes infos hors quantité) : une seule, quantités additionnées."""
+    """Lignes identiques : une seule, quantités additionnées."""
     merged = {}
     for row in rows:
-        key = tuple(normalize(str(v)) if v is not None else "" for k, v in sorted(row.items()) if k != "nombre")
+        key = _row_key(row)
         if key in merged:
             merged[key]["nombre"] = int(merged[key].get("nombre") or 1) + int(row.get("nombre") or 1)
         else:
             merged[key] = dict(row)
     return list(merged.values())
+
+
+def tidy_excel(path: Path = EXCEL_PATH) -> int:
+    """Regroupe aussi les lignes identiques dans l'Excel : la première garde la somme, les autres sont supprimées.
+    Renvoie le nombre de lignes supprimées (0 si l'Excel est ouvert ailleurs et ne peut pas être enregistré)."""
+    wb = openpyxl.load_workbook(path)
+    removed = 0
+    for ws in wb.worksheets:
+        header = _header(next(ws.iter_rows(max_row=1, values_only=True), ()))
+        if "nombre" not in header:
+            continue
+        qty_col = header.index("nombre") + 1
+        first, extra = {}, []
+        for i, values in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+            if not values or not values[0] or not str(values[0]).strip():
+                continue
+            row = dict(zip(header, values))
+            key = _row_key(row)
+            if key in first:
+                cell = ws.cell(first[key], qty_col)
+                cell.value = int(cell.value or 1) + int(row.get("nombre") or 1)
+                extra.append(i)
+            else:
+                first[key] = i
+        for i in reversed(extra):
+            ws.delete_rows(i)
+        removed += len(extra)
+    if removed:
+        try:
+            wb.save(path)
+        except PermissionError:
+            return 0
+    return removed
 
 
 def load_corrections(con) -> None:
@@ -153,6 +195,7 @@ def load_corrections(con) -> None:
 
 def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
     """Remplace la collection par le contenu de l'Excel et recrée les decks 'deck_*'."""
+    tidy_excel(path)
     load_corrections(con)
     matcher = Matcher(con)
     report = []
