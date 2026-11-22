@@ -35,8 +35,7 @@ def _apply(action, message: str | None, place: str | None = None, remember: dict
     if message:
         st.session_state["saisie_done"] = message
     st.session_state.update(remember or {})
-    st.cache_data.clear()
-    st.rerun()
+    st.rerun()  # pas de st.cache_data.clear() : les caches suivent déjà une empreinte des données
 
 
 def _manage_zones(places: list[str], current: str | None):
@@ -120,11 +119,14 @@ def _add_form(place: str):
             help="Le code est imprimé sous l'illustration (ex. CRMS-FR020). Il donne le prix exact de ta version.")
         qty = st.number_input("Nombre d'exemplaires", 1, 99, 1)
         if st.button(f"Ajouter à « {place} »", type="primary"):
-            p = versions[key]
-            name = card["name_fr"] if isinstance(card["name_fr"], str) else card["name_en"]
+            try:
+                name = stock.add_card(con, place, int(card_id), qty, versions[key])
+            except PermissionError:
+                st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
+                return
             st.session_state.pop("saisie_card", None)
-            _apply(lambda: stock.add(place, name, qty, p["rarity"] if p else None, p["set_code"] if p else None),
-                   None, place, {"saisie_added": {"id": card_id, "name": name, "qty": qty, "place": place}})
+            st.session_state["saisie_added"] = {"id": card_id, "name": name, "qty": qty, "place": place}
+            st.rerun()
 
 
 def _contents(place: str):

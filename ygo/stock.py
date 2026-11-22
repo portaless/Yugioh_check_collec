@@ -115,6 +115,56 @@ def add(sheet: str, name: str, quantity: int, rarity: str | None, code: str | No
     wb.save(path)
 
 
+def add_card(con, sheet: str, card_id: int, quantity: int, printing: dict | None, path=None) -> str:
+    """Ajout rapide d'une carte choisie dans l'appli : la carte et sa version sont connues, donc la ligne est écrite
+    déjà complétée (sans le compléteur) et la collection mise à jour directement (sans réimport).
+    Une ligne identique déjà présente voit sa quantité augmenter. Renvoie le nom écrit."""
+    path = path or importer.EXCEL_PATH
+    card = dict(con.execute("SELECT * FROM cards WHERE id = ?", (card_id,)).fetchone())
+    name = card["name_fr"] or card["name_en"]
+    rarity = printing["rarity"] if printing else None
+    code = completer._french(printing["set_code"]) if printing else None
+    wb = openpyxl.load_workbook(path) if path.exists() else openpyxl.Workbook()
+    if not path.exists():
+        wb.remove(wb.active)
+    ws, col = _sheet(wb, sheet)
+    same = None
+    for i in range(2, ws.max_row + 1):
+        if (importer.normalize(str(ws.cell(i, col["carte"]).value or "")) == importer.normalize(name)
+                and R.canonical(ws.cell(i, col["rareté"]).value) == R.canonical(rarity)
+                and str(ws.cell(i, col["code"]).value or "").strip().upper() == (code or "")):
+            same = i
+            break
+    if same:
+        cell = ws.cell(same, col["nombre"])
+        cell.value = int(cell.value or 1) + int(quantity)
+    else:
+        i = ws.max_row + 1
+        ws.cell(i, col["carte"], name)
+        ws.cell(i, col["nombre"], int(quantity))
+        if rarity:
+            ws.cell(i, col["rareté"], R.label(rarity) or rarity)
+        inset = [printing] if printing else []
+        completer._fill(ws, i, col, card, inset, completer._set(code) if code else None, {"choose": [], "unknown": []},
+                        "", name, lambda c: [])
+    wb.save(path)
+
+    rarity = R.canonical(rarity) if rarity else None
+    row = con.execute("SELECT rowid FROM collection WHERE location = ? AND card_id = ? AND excel_name = ? "
+                      "AND rarity IS ? AND set_code IS ?", (sheet, card_id, name, rarity, code)).fetchone()
+    if row:
+        con.execute("UPDATE collection SET quantity = quantity + ? WHERE rowid = ?", (int(quantity), row[0]))
+    else:
+        con.execute("INSERT INTO collection (card_id, excel_name, location, quantity, match_score, rarity, set_code) "
+                    "VALUES (?, ?, ?, ?, 100, ?, ?)", (card_id, name, sheet, int(quantity), rarity, code))
+    if sheet.startswith(importer.DECK_SHEET_PREFIX):
+        counts = dict(con.execute("SELECT card_id, SUM(quantity) FROM collection WHERE location = ? AND card_id "
+                                  "IS NOT NULL GROUP BY card_id", (sheet,)).fetchall())
+        importer.save_deck_from_counts(con, sheet, counts)
+    con.commit()
+    return name
+
+
 def update(sheet: str, quantities: dict[int, int], path=None) -> None:
     """Nouvelles quantités par numéro de ligne ; 0 supprime la ligne."""
     path = path or importer.EXCEL_PATH

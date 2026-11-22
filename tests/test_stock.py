@@ -37,3 +37,22 @@ def test_storage_zones_can_be_created_renamed_and_deleted(tmp_path):
     assert stock.sheets(path) == ["classeur"]
     with pytest.raises(ValueError):
         stock.delete("classeur", path)                 # l'Excel garde au moins une feuille
+
+
+def test_quick_add_gives_the_same_excel_and_collection_as_a_full_import(con, tmp_path, monkeypatch):
+    path = tmp_path / "c.xlsx"
+    monkeypatch.setattr(importer, "EXCEL_PATH", path)
+    monkeypatch.setattr(importer, "CORRECTIONS_PATH", tmp_path / "aucune.json")
+    lob = {"set_code": "LOB-EN053", "rarity": "Ultra Rare"}
+    assert stock.add_card(con, "deck_test", 10, 2, lob, path) == "Raigeki"
+    stock.add_card(con, "deck_test", 10, 1, lob, path)        # même version : même ligne, quantité augmentée
+    stock.add_card(con, "deck_test", 1, 1, None, path)        # version inconnue
+    lines = [(r["carte"], r["nombre"], r["rareté"], r["code"]) for r in stock.rows("deck_test", path)]
+    assert lines == [("Raigeki", 3, "Ultra Rare", "LOB-FR053"), ("Ciel Bleu Mekk-Chevalier", 1, "", "")]
+    query = "SELECT card_id, excel_name, quantity, rarity, set_code FROM collection WHERE location = 'deck_test' ORDER BY 1"
+    quick = [tuple(r) for r in con.execute(query)]
+    deck = con.execute("SELECT SUM(quantity) FROM deck_cards JOIN decks ON decks.id = deck_id "
+                       "WHERE name = 'deck_test'").fetchone()[0]
+    assert stock.refresh(con, path)["done"] == 0               # rien à compléter : la ligne l'était déjà
+    assert quick == [tuple(r) for r in con.execute(query)]
+    assert deck == 4
