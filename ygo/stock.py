@@ -131,5 +131,5 @@ def update(sheet: str, quantities: dict[int, int], path=None) -> None:
 def refresh(con, path=None) -> dict:
     """Complète les nouvelles lignes puis réimporte toute la collection. Renvoie le rapport du compléteur."""
     report = completer.complete(con, path)
-    importer.import_excel(con, path)
+    importer.import_excel(con, path, reuse=True)
     return report

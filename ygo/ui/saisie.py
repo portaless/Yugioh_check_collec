@@ -91,13 +91,13 @@ def _add_form(place: str):
         st.session_state["saisie_focus"] = st.session_state.get("saisie_focus", 0) + 1
         card = df[df["id"] == added["id"]]
         total = int(card["owned"].iloc[0]) if len(card) else added["qty"]
-        st.toast(f"{added['qty']} × {added['name']} ajouté(s)", icon="✅")
+        st.toast(f"{added['qty']} × {added['name']} ajouté(s)")
         with st.container(border=True):
             left, right = st.columns([1, 9], vertical_alignment="center")
             if len(card):
                 card_img(left, card.iloc[0], "70px")
             right.success(f"**{added['qty']} × {added['name']}** ajouté(s) à « {added['place']} » — tu en as "
-                          f"maintenant {total} au total. Tape la carte suivante.", icon="✅")
+                          f"maintenant {total} au total. Tape la carte suivante.")
     picked = card_search("saisie_search", "Tape le nom de la carte (français ou anglais)…",
                          focus=st.session_state.get("saisie_focus", 0))
     if picked:

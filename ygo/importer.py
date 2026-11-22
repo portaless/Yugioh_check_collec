@@ -202,12 +202,18 @@ def load_corrections(con) -> None:
                     [(k, v) for k, v in data.items() if not k.startswith("_")])
 
 
-def import_excel(con, path: Path | None = None) -> list[dict]:
-    """Remplace la collection par le contenu de l'Excel et recrée les decks 'deck_*'."""
+def import_excel(con, path: Path | None = None, reuse: bool = False) -> list[dict]:
+    """Remplace la collection par le contenu de l'Excel et recrée les decks 'deck_*'.
+    `reuse` : les noms déjà importés gardent leur carte (rapide, pour la saisie dans l'appli) ; seuls les
+    nouveaux noms passent par la recherche approchée, qui prend ~0,1 s par nom."""
     path = path or EXCEL_PATH
     tidy_excel(path)
     load_corrections(con)
-    matcher = Matcher(con)
+    overrides = {r["excel_name"] for r in con.execute("SELECT excel_name FROM name_overrides")}
+    known = {r["excel_name"]: (r["card_id"], r["match_score"])
+             for r in con.execute("SELECT excel_name, card_id, match_score FROM collection")
+             if r["excel_name"] not in overrides} if reuse else {}
+    matcher = None
     report = []
     con.execute("DELETE FROM collection")
     for sheet, rows in read_excel(path).items():
@@ -216,7 +222,11 @@ def import_excel(con, path: Path | None = None) -> list[dict]:
             name = str(row["carte"]).strip()
             qty = int(row.get("nombre") or 1)
             level = row.get("étoile")
-            card_id, score = matcher.match(name, _category(row), level)
+            if name in known:
+                card_id, score = known[name]
+            else:
+                matcher = matcher or Matcher(con)
+                card_id, score = matcher.match(name, _category(row), level)
             if score < MIN_SCORE:
                 card_id = None
             rarity = R.canonical(row.get("rareté"))
