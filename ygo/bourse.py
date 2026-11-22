@@ -44,9 +44,9 @@ def load_history() -> pd.DataFrame:
 
 
 def tracked(con) -> set[int]:
-    """Produits Cardmarket des versions possédées."""
+    """Produits Cardmarket cotés des versions possédées."""
     return {v["print"]["cm_product"] for versions in CM.owned_by_card(con).values() for v in versions
-            if v["print"] and v["print"]["cm_product"]}
+            if v["print"] and v["print"]["cm_product"] and v["print"]["trend"] is not None}
 
 
 def record(con, day: str, guide: dict[int, dict], products: set[int] | None = None) -> int:
@@ -87,13 +87,14 @@ def record_current(con) -> int:
 
 
 def ensure_today(con, today: date | None = None) -> str:
-    """Relevé du jour s'il manque : retélécharge le guide des prix s'il date d'avant aujourd'hui.
-    Renvoie la date du guide relevé."""
+    """Relevé du jour s'il manque, ou s'il manque des versions possédées depuis (Excel réimporté) :
+    retélécharge le guide des prix s'il date d'avant aujourd'hui. Renvoie la date du guide relevé."""
     today = today or date.today()
     day, _ = CM.load_guide() if (CM.CM_DIR / "prices.json").exists() else ("", None)
     if day < today.isoformat():
         day = CM.refresh_prices(con)
-    if not any(r["jour"] == day and r["estime"] == "0" for r in _read(HISTORY_PATH)):
+    done = {int(r["produit"]) for r in _read(HISTORY_PATH) if r["jour"] == day and r["estime"] == "0"}
+    if not done or tracked(con) - done:
         record_current(con)
     return day
 

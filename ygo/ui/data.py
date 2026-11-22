@@ -17,7 +17,7 @@ from ygo import install
 from ygo import rarity as R
 from ygo.fr import BANLIST, tr
 from ygo.importer import CORRECTIONS_PATH, normalize
-from ygo.ui.core import card_img, catalog, con, refresh, search
+from ygo.ui.core import card_img, catalog, con, refresh, search_any, search_box
 from ygo.ui.style import page_header
 
 
@@ -72,10 +72,10 @@ def correction_form(excel_name: str, status: str | None):
         if status:
             st.markdown(f"**{excel_name}** — {status}")
         form, preview = st.columns([3, 1])
-        text = form.text_input("Chercher une autre carte (laisser vide = cartes les plus proches)",
-                               key=f"fix_q_{excel_name}")
-        if text:
-            res = search(df, text).head(100)
+        terms = search_box(form, "Chercher une autre carte (laisser vide = cartes les plus proches)", df["nom"],
+                           f"fix_q_{excel_name}")
+        if terms:
+            res = search_any(df, terms).head(100)
         else:
             q = normalize(excel_name)
             names = dict(zip(df.index, df["name_fr"].fillna(df["name_en"]).map(normalize)))

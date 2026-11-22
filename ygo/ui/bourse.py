@@ -8,7 +8,8 @@ import streamlit as st
 
 from ygo import bourse as B
 from ygo import rarity as R
-from ygo.ui.core import catalog, con, gallery, open_card
+from ygo.importer import normalize
+from ygo.ui.core import catalog, con, gallery, open_card, search_box
 from ygo.ui.style import GOLD, page_header
 
 PERIODS = {"7 jours": 7, "30 jours": 30, "Tout": None}
@@ -71,11 +72,25 @@ def _for_period(versions: pd.DataFrame, days: int | None) -> pd.DataFrame:
     return out
 
 
+ORDERS = ["Plus fortes hausses", "Plus fortes baisses", "Plus chères", "Moins chères", "Toutes"]
+
+
 def _sorted(versions: pd.DataFrame, order: str) -> pd.DataFrame:
+    if order in ("Plus chères", "Moins chères"):  # prix actuel d'un exemplaire
+        return versions.sort_values(["actuel", "carte"], ascending=[order == "Moins chères", True]).reset_index(drop=True)
     view = versions.sort_values("gain", ascending=(order == "Plus fortes baisses"))
     if order != "Toutes":
         view = view[view["gain"] < 0] if order == "Plus fortes baisses" else view[view["gain"] > 0]
     return view.reset_index(drop=True)
+
+
+def _search(versions: pd.DataFrame, query: list[str]) -> pd.DataFrame:
+    """Cartes dont le nom (ou l'extension) contient l'un des termes choisis ou tapés."""
+    terms = [normalize(t) for t in query if normalize(t)]
+    if not terms:
+        return versions
+    text = (versions["carte"] + " " + versions["extension"].fillna("")).map(normalize)
+    return versions[text.map(lambda s: any(t in s for t in terms))]
 
 
 def _trend(v: float) -> str:
@@ -150,11 +165,14 @@ def page_bourse():
                   if data["fixed"] > 0.01 else ""))
 
     st.subheader("Mes cartes")
+    query = search_box(st, "Rechercher", list(versions["carte"]) + list(versions["extension"].dropna()),
+                       "bourse_search", "ex. nibiru, labrynth…")
     o1, o2 = st.columns([3, 1])
-    order = o1.segmented_control("Tri", ["Plus fortes hausses", "Plus fortes baisses", "Toutes"],
+    order = o1.segmented_control("Tri", ORDERS,
                                  default="Plus fortes hausses", label_visibility="collapsed") or "Toutes"
     per_row = o2.select_slider("Cartes par ligne", [4, 5, 6, 8], value=6)
-    view = _sorted(_for_period(versions, days), order)
+    view = _sorted(_search(_for_period(versions, days), query), order if not query else
+                   (order if order != "Plus fortes hausses" else "Toutes"))
     st.caption(f"Prix tendance Cardmarket de la version possédée (extension + rareté), évolution "
                f"{'sur ' + period.lower() if days else 'depuis le 1er novembre'}. Clique sur une carte pour ouvrir sa fiche.")
     if view.empty:

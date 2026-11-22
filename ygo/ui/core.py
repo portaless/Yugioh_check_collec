@@ -74,14 +74,25 @@ def refresh():
     st.rerun()
 
 
-def search(df: pd.DataFrame, text: str) -> pd.DataFrame:
-    q = normalize(text or "")
-    if not q:
+def search_box(container, label: str, options, key: str, placeholder: str = "Tape un nom…") -> list[str]:
+    """Barre de recherche du projet : propose les noms pendant la frappe (auto-complétion), accepte plusieurs choix,
+    et un texte libre (« mekk ») pour une recherche partielle."""
+    return container.multiselect(label, sorted(set(options), key=normalize), key=key, placeholder=placeholder,
+                                 accept_new_options=True)
+
+
+def search_any(df: pd.DataFrame, terms: list[str]) -> pd.DataFrame:
+    """Cartes correspondant à au moins un des termes (tous les mots d'un terme, dans le désordre)."""
+    if not terms:
         return df
-    mask = pd.Series(True, index=df.index)
-    for word in q.split():
-        mask &= df["search"].str.contains(word, regex=False)
-    return df[mask]
+    return df[pd.concat([df["search"].pipe(lambda s, t=t: _words_in(s, t)) for t in terms], axis=1).any(axis=1)]
+
+
+def _words_in(texts: pd.Series, term: str) -> pd.Series:
+    mask = pd.Series(True, index=texts.index)
+    for word in normalize(term).split():
+        mask &= texts.str.contains(word, regex=False)
+    return mask
 
 
 def card_img(container, c, max_width: str = "100%"):

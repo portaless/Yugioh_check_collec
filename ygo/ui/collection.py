@@ -20,7 +20,8 @@ from ygo.ui.core import (
     effect_text,
     gallery,
     open_card,
-    search,
+    search_any,
+    search_box,
     show_issues,
 )
 from ygo.ui.style import page_header, status_tile
@@ -36,12 +37,13 @@ def page_collection():
     locations = [r[0] for r in con.execute("SELECT DISTINCT location FROM collection ORDER BY 1")]
 
     f1, f2, f3, f4 = st.columns([3, 2, 2, 2])
-    text = f1.text_input("Recherche", placeholder="ex. mekk, ciel bleu, infini…")
+    owned_only = f4.toggle("Seulement mes cartes", value=True)
+    terms = search_box(f1, "Recherche", (df[df["owned"] > 0] if owned_only else df)["nom"], "collection_search",
+                       "ex. mekk, ciel bleu, infini…")
     cats = f2.multiselect("Catégorie", sorted(df["catégorie"].unique()), placeholder="Choisir…")
     locs = f3.multiselect("Emplacement", locations, placeholder="Choisir…")
-    owned_only = f4.toggle("Seulement mes cartes", value=True)
 
-    view = search(df, text)
+    view = search_any(df, terms)
     if owned_only:
         view = view[view["owned"] > 0]
     if cats:
@@ -125,9 +127,9 @@ def page_builder():
     add_col, deck_col = st.columns([1, 2])
     with add_col:
         st.subheader("Ajouter une carte")
-        text = st.text_input("Rechercher", key="add_search")
         owned_only = st.toggle("Seulement mes cartes", value=True, key="add_owned")
-        res = search(df, text)
+        terms = search_box(st, "Rechercher", (df[df["owned"] > 0] if owned_only else df)["nom"], "add_search")
+        res = search_any(df, terms)
         if owned_only:
             res = res[res["owned"] > 0]
         res = res.head(200)
