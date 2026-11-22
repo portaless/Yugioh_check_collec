@@ -1,6 +1,7 @@
 import pytest
 
 from ygo import analysis as A
+from ygo import plan as P
 from ygo import optimizer as O
 from ygo import simulation as S
 from ygo.importer import Matcher, merge_rows, normalize, tidy_excel
@@ -71,22 +72,39 @@ def test_hypergeometric_matches_known_values():
     assert A.p_at_least(40, 40, 5) == 1
 
 
-def test_roles(by_id):
-    assert A.role(by_id[1]) == A.MEKK
-    assert A.role(by_id[6]) == A.LEGACY
-    assert A.role(by_id[7]) == A.INTERRUPT
-    assert A.role(by_id[10]) == A.BREAKER
-    assert A.role(by_id[11]) == A.PSYCHIC
+MEKK = P.Plan(("Mekk-Knight",))
+
+
+def test_roles_come_from_the_deck_engine(by_id):
+    assert P.role(by_id[1], MEKK) == P.STARTER
+    assert P.flags(by_id[1], MEKK)["column"] and not P.flags(by_id[5], MEKK)["column"]  # Mémoire : starter libre
+    assert P.role(by_id[4], MEKK) == P.STARTER            # Girsu envoie depuis le deck
+    assert P.role(by_id[6], MEKK) == P.ENGINE             # Piège de l'archétype
+    assert P.role(by_id[7], MEKK) == P.INTERRUPT
+    assert P.role(by_id[10], MEKK) == P.BREAKER
+    assert P.role(by_id[17], MEKK) == P.PROTECTION
+    assert P.role(by_id[11], MEKK) == P.OFFPLAN
+    assert P.role(by_id[30], MEKK) == P.EXTRA_ENGINE
+    # même carte, autre moteur : un Mekk-Chevalier devient hors moteur
+    assert P.role(by_id[1], P.Plan(("Lunalight",))) == P.OFFPLAN
+
+
+def test_engine_is_detected_and_includes_support_naming_it(by_id):
+    deck = [{**by_id[i], "zone": "main", "quantity": 3} for i in (1, 2, 7, 10)]
+    assert P.detect(deck) == MEKK
+    support = {"name_en": "Support", "frame_type": "spell", "archetype": None,
+               "desc_en": 'Add 1 "Mekk-Knight" card from your Deck to your hand.'}
+    assert P.flags(support, MEKK)["starter"]
 
 
 # ----------------------------------------------------------------- simulation
 
 def test_protection_excludes_weak_traps_and_mulcharmy(by_id):
-    assert S.card_flags(by_id[6])["protect"]          # Piège Héritage du Monde
-    assert S.card_flags(by_id[17])["protect"]         # Jugement Solennel
-    assert not S.card_flags(by_id[12])["protect"]     # Pommes d'Or
-    assert not S.card_flags(by_id[13])["protect"]     # Mulcharmy : inutilisable après ton tour
-    assert S.card_flags(by_id[13])["interrupt"]       # ... mais interruption en second
+    assert S.card_flags(by_id[6], MEKK)["protect"]          # Piège Héritage du Monde
+    assert S.card_flags(by_id[17], MEKK)["protect"]         # Jugement Solennel
+    assert not S.card_flags(by_id[12], MEKK)["protect"]     # Pommes d'Or
+    assert not S.card_flags(by_id[13], MEKK)["protect"]     # Mulcharmy : inutilisable après ton tour
+    assert S.card_flags(by_id[13], MEKK)["interrupt"]       # ... mais interruption en second
 
 
 @pytest.mark.parametrize("hand,first,expected", [
@@ -98,7 +116,7 @@ def test_protection_excludes_weak_traps_and_mulcharmy(by_id):
     ([11, 11, 11, 11, 11, 7], False, "Bloquée"),
 ])
 def test_hand_verdicts(by_id, hand, first, expected):
-    assert S.describe_hand([by_id[i] for i in hand], first)[0] == expected
+    assert S.describe_hand([by_id[i] for i in hand], first, MEKK)[0] == expected
 
 
 def test_simulation_rates_are_consistent(by_id):

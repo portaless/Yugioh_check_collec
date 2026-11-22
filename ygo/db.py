@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS name_overrides (
 CREATE TABLE IF NOT EXISTS decks (
     id     INTEGER PRIMARY KEY AUTOINCREMENT,
     name   TEXT UNIQUE NOT NULL,
-    notes  TEXT
+    notes  TEXT,
+    plan   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS deck_cards (
@@ -118,6 +119,9 @@ def connect(path: Path = DB_PATH) -> sqlite3.Connection:
     for column in ("rarity", "set_code"):
         if column not in columns:
             con.execute(f"ALTER TABLE collection ADD COLUMN {column} TEXT")
+    # moteur choisi pour le deck (archétypes séparés par « | ») ; vide = détecté, cf. plan.py
+    if "plan" not in {r["name"] for r in con.execute("PRAGMA table_info(decks)")}:
+        con.execute("ALTER TABLE decks ADD COLUMN plan TEXT")
     return con
 
 

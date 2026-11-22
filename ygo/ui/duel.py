@@ -9,24 +9,25 @@ from ygo import analysis as A
 from ygo import builds
 from ygo import simulation as S
 from ygo.fr import ZONES
-from ygo.ui.core import cards_gallery, con, deck_counts, deck_kpis, deck_signature, verdict_pill
+from ygo.ui.core import (cards_gallery, con, deck_counts, deck_kpis, deck_plan, deck_signature, plan_selector,
+                         verdict_pill)
 from ygo.ui.style import TONES, page_header, status_tile
 
 
 # (libellé, attribut Kpis, plus haut = mieux, explication)
 DUEL_KPIS = [
     ("Main jouable en premier", "playable_first", True,
-     "Tu peux lancer le moteur Mekk avec tes 5 cartes, sans aide du terrain adverse."),
+     "Tu peux lancer ton moteur avec tes 5 cartes, sans aide du terrain adverse."),
     ("Main forte en premier", "strong_first", True,
      "Jouable, et tu gardes une protection (Piège ou interruption) pour le tour adverse."),
     ("Main jouable en second", "playable_second", True,
-     "Au moins un starter dans tes 6 cartes : le terrain adverse fournit les colonnes."),
+     "Au moins un starter dans tes 6 cartes."),
     ("Main forte en second", "strong_second", True,
      "Jouable, et tu peux couper le combo adverse ou nettoyer son terrain."),
     ("Main bloquée en premier", "brick_first", False,
      "Aucun starter en main : le tour est perdu."),
     ("Cartes hors moteur par main", "offplan_per_hand", False,
-     "En moyenne, cartes qui ne servent pas le plan Mekk-Chevalier."),
+     "En moyenne, cartes qui ne servent ni le moteur, ni à interrompre, protéger ou détruire."),
 ]
 
 
@@ -67,13 +68,16 @@ def duel_kpi_table(name_a: str, name_b: str, ka, kb) -> tuple[int, int]:
     return wins[0], wins[1]
 
 
-def composition_counts(deck: list[dict]) -> dict:
-    flags = [S.card_flags(c) for c in deck]
+STARTERS = "Starters du moteur"
+
+
+def composition_counts(deck: list[dict], plan) -> dict:
+    flags = [S.card_flags(c, plan) for c in deck]
     total = len(deck)
     out = {}
-    for label, flag in (("Starters (Mekk + Mémoire)", "starter"), ("Interruptions depuis la main", "interrupt"),
+    for label, flag in ((STARTERS, "starter"), ("Interruptions depuis la main", "interrupt"),
                         ("Pièges (protection posée)", "trap"), ("Destruction du terrain", "breaker"),
-                        ("Hors moteur Mekk", "offplan")):
+                        ("Hors moteur", "offplan")):
         n = sum(f[flag] for f in flags)
         out[label] = (n, n / total if total else 0)
     return out
@@ -82,7 +86,7 @@ def composition_counts(deck: list[dict]) -> dict:
 @st.cache_data(show_spinner="Simulation des mains…")
 def deck_stats(deck_id: int, signature: tuple) -> tuple:
     """KPI et leviers d'un deck, recalculés seulement quand son contenu change (signature)."""
-    return deck_kpis(deck_id, signature), S.levers(S.main_deck(A.deck_cards(con, deck_id)))
+    return deck_kpis(deck_id, signature), S.levers(S.main_deck(A.deck_cards(con, deck_id)), deck_plan(deck_id))
 
 
 def page_duel():
@@ -105,6 +109,8 @@ def page_duel():
     if not deck_a or not deck_b:
         st.info("Un des deux Main Decks est vide.")
         return
+    plans = {name_a: plan_selector(c1, decks[name_a], "duel_plan_a"),
+             name_b: plan_selector(c2, decks[name_b], "duel_plan_b")}
     (ka, levers_a), (kb, levers_b) = (deck_stats(decks[n], deck_signature(decks[n])) for n in (name_a, name_b))
 
     with st.expander("Comment sont calculés ces chiffres ?"):
@@ -115,9 +121,10 @@ Chaque deck est mélangé **{n_hands} fois** (simulation de Monte-Carlo). On reg
 d'erreur de la simulation (environ ±1 point) : il n'est donc pas dû au hasard.
 
 **Hypothèses de jeu**
-- *Starter* : un monstre Mekk-Chevalier, ou *Mémoire de l'Héritage du Monde* qui en invoque un depuis le deck.
-- **En premier**, le terrain adverse est vide : un Mekk ne s'invoque que si tu poses toi-même une carte dans sa
-  colonne. Main jouable = Mémoire, ou un Mekk + une Magie/Piège à poser, ou deux Mekk.
+- *Starter* : carte du moteur du deck (son archétype) qui lance le jeu seule : elle s'invoque depuis la main,
+  ou ajoute, invoque ou envoie au cimetière une carte depuis le deck. Rôles lus dans le texte des cartes.
+- **En premier**, le terrain adverse est vide. Un starter « de colonne » (Mekk-Chevalier) ne s'invoque que si tu
+  poses toi-même une carte dans sa colonne : il lui faut une Magie/Piège à poser ou un second starter.
 - **En second**, l'adversaire a rempli son terrain : un seul starter suffit.
 - *Main forte* = jouable, plus une protection en premier (Piège ou interruption), ou une interruption /
   destruction en second.
@@ -152,7 +159,7 @@ Ce modèle ne joue pas les combos en entier : il mesure la régularité des main
         cols = st.columns(2, gap="large")
         for col, name, k in ((cols[0], name_a, ka), (cols[1], name_b, kb)):
             hand = hands[name][idx]
-            verdict, reasons = S.describe_hand(hand, first)
+            verdict, reasons = S.describe_hand(hand, first, plans[name])
             rate = k.strong_first if first else k.strong_second
             with col:
                 st.markdown(f"**{name}**")
@@ -163,14 +170,14 @@ Ce modèle ne joue pas les combos en entier : il mesure la régularité des main
 
     # 3. Pourquoi
     st.header("3. Pourquoi : la composition")
-    comp_a, comp_b = composition_counts(deck_a), composition_counts(deck_b)
+    comp_a, comp_b = composition_counts(deck_a, plans[name_a]), composition_counts(deck_b, plans[name_b])
     rows = []
     for label in comp_a:
         (na, pa), (nb, pb) = comp_a[label], comp_b[label]
         rows.append({"Catégorie": label, f"{name_a}": f"{na} cartes ({100 * pa:.0f} %)",
                      f"{name_b}": f"{nb} cartes ({100 * pb:.0f} %)"})
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-    sa, sb = comp_a["Starters (Mekk + Mémoire)"], comp_b["Starters (Mekk + Mémoire)"]
+    sa, sb = comp_a[STARTERS], comp_b[STARTERS]
     st.markdown(
         f"Ce qui compte n'est pas le nombre de starters mais leur **densité**. « {name_a} » en a {sa[0]} sur "
         f"{len(deck_a)} cartes ({100 * sa[1]:.0f} %), « {name_b} » {sb[0]} sur {len(deck_b)} ({100 * sb[1]:.0f} %). "

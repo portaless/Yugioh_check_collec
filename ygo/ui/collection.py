@@ -6,6 +6,7 @@ import streamlit as st
 from ygo import analysis as A
 from ygo import cardmarket as CM
 from ygo import importer
+from ygo import plan as P
 from ygo.db import is_extra
 from ygo.fr import BANLIST, ZONES, ZONES_REV, tr
 from ygo.ui.core import (
@@ -15,6 +16,8 @@ from ygo.ui.core import (
     con,
     deck_counts,
     deck_kpis,
+    deck_plan,
+    plan_selector,
     deck_selector,
     deck_signature,
     effect_text,
@@ -122,6 +125,7 @@ def page_builder():
     if deck["name"].startswith(importer.DECK_SHEET_PREFIX):
         st.caption("Ce deck vient de l'Excel : un nouvel import l'écrasera. Pour le modifier durablement, "
                    "duplique-le (barre latérale).")
+    plan = plan_selector(st, deck_id, "builder_plan")
     cards = A.deck_cards(con, deck_id)
 
     add_col, deck_col = st.columns([1, 2])
@@ -162,7 +166,7 @@ def page_builder():
 
         table = pd.DataFrame([{
             "id": c["id"], "Zone": ZONES[c["zone"]], "Carte": c["name_fr"] or c["name_en"], "Qté": c["quantity"],
-            "Stock": c["owned"], "Rôle": A.role(c), "Banlist": tr(BANLIST, c["ban_tcg"]),
+            "Stock": c["owned"], "Rôle": P.role(c, plan), "Banlist": tr(BANLIST, c["ban_tcg"]),
         } for c in cards])
         if table.empty:
             st.info("Deck vide : ajoute des cartes à gauche.")

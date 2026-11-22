@@ -392,7 +392,7 @@ Chaque deck candidat est jugé par simulation de mains de départ, avec le même
 - part de **mains fortes en premier** (un starter, de quoi l'invoquer et une protection pour le tour adverse) ;
 - part de **mains fortes en second** (un starter et de quoi couper le combo adverse ou nettoyer son terrain) ;
 - **indice face au méta** : régularité face aux interruptions des decks qui gagnent actuellement en tournoi ;
-- une pénalité pour les cartes **hors moteur Mekk**.
+- une pénalité pour les cartes **hors moteur** (ni du moteur choisi, ni interruption, protection ou destruction).
 
 Tu règles le poids de chaque objectif avec des curseurs.
 
@@ -407,8 +407,8 @@ Le deck trouvé est réévalué sur **20 000 nouvelles mains** et comparé à te
 qu'un coup de chance des tirages de la recherche disparaîtrait à cette étape.
 
 **5. L'Extra Deck**
-Il est rempli par règles : Liens Mekk-Chevalier d'abord, puis les Extra génériques invocables avec tes monstres
-(les Synchro seulement si Girsu, ton Syntoniseur, est dans le deck).
+Il est rempli par règles : tes cartes forcées, puis l'Extra du moteur, puis les Extra génériques invocables avec
+tes monstres (Synchro s'il y a un Syntoniseur dans le Main, Xyz s'il y a assez de monstres du bon niveau).
 
 **Limites du modèle**
 L'algorithme optimise la **régularité des mains**, pas l'issue d'un duel : il ne joue pas les combos et ne connaît

@@ -9,9 +9,11 @@ from ygo import analysis as A
 from ygo import builds
 from ygo import meta
 from ygo import optimizer as O
+from ygo import plan as P
 from ygo import simulation as S
 from ygo.db import is_extra
-from ygo.ui.core import cards_gallery, catalog, con
+from ygo.fr import ARCHETYPES, tr
+from ygo.ui.core import cards_gallery, catalog, con, plan_name
 from ygo.ui.style import TONES, page_header
 
 
@@ -26,16 +28,16 @@ def meta_opponents() -> list[tuple[list[dict], float]]:
     return [(meta.resolve(con, lists[0]["main"]), len(lists)) for _, lists in meta.archetypes(data)[:META_OPPONENTS]]
 
 
-def evaluate_main(main: dict, opponents) -> dict:
+def evaluate_main(main: dict, opponents, plan: P.Plan) -> dict:
     """Évaluation indépendante (autres tirages que ceux de la recherche) : 20 000 mains + matchups."""
     rows = {r["id"]: dict(r) for r in con.execute(
         f"SELECT * FROM cards WHERE id IN ({','.join('?' * len(main))})", list(main))}
     deck = [rows[i] for i, q in main.items() for _ in range(q)]
-    k = S.simulate(deck, seed=123)
+    k = S.simulate(deck, plan, seed=123)
     out = {"Mains fortes en premier": k.strong_first, "Mains fortes en second": k.strong_second,
            "Main bloquée en premier": k.brick_first}
     if opponents:
-        out["Indice face au méta"] = (sum(S.matchup(deck, o, seed=7).index * w for o, w in opponents)
+        out["Indice face au méta"] = (sum(S.matchup(deck, o, plan, seed=7).index * w for o, w in opponents)
                                       / sum(w for _, w in opponents))
     return out
 
@@ -43,7 +45,7 @@ def evaluate_main(main: dict, opponents) -> dict:
 def page_generator():
     page_header(
         "Générateur de build",
-        "Un algorithme cherche, parmi les combinaisons de ton stock, le Main Deck Mekk-Chevalier qui maximise tes objectifs, dans le respect de la banlist.",
+        "Un algorithme cherche, parmi les combinaisons de ton stock, le Main Deck du moteur choisi qui maximise tes objectifs, dans le respect de la banlist.",
         "Analyse",
     )
     with st.expander("Comment fonctionne l'algorithme ?"):
@@ -54,16 +56,16 @@ def page_generator():
    - poids *premier* × part de **mains fortes quand tu commences** ;
    - \\+ poids *second* × part de **mains fortes quand tu joues en second** ;
    - \\+ poids *méta* × **indice moyen face aux archétypes du méta**, pondéré par leur part ;
-   - − poids *hors moteur* × cartes qui ne servent pas le plan Mekk.
+   - − poids *hors moteur* × cartes qui ne servent ni le moteur, ni à interrompre, protéger ou détruire.
 3. **Départ glouton** : on remplit le deck avec les cartes les plus utiles au modèle.
 4. **Recuit simulé** : des milliers de fois, on retire une carte et on en ajoute une autre. Une amélioration est
    gardée ; une dégradation l'est parfois au début, pour ne pas rester bloqué sur une solution moyenne.
    Tous les essais sont jugés sur **les mêmes mains tirées**, pour que la comparaison soit équitable.
 5. **Vérification** : le deck trouvé est réévalué sur 20 000 **nouvelles** mains, pour s'assurer que le gain
    n'est pas un coup de chance des tirages de la recherche.
-6. **Extra Deck**, par règles et dans la taille choisie (0 à 15) : tes cartes forcées d'abord, puis les Liens
-   Mekk-Chevalier, puis les Extra génériques invocables avec tes monstres (les Synchro seulement si Girsu, ton
-   Syntoniseur, est dans le deck). Les cartes exclues ne sont jamais prises.
+6. **Extra Deck**, par règles et dans la taille choisie (0 à 15) : tes cartes forcées d'abord, puis l'Extra du
+   moteur, puis les Extra génériques réellement invocables (Synchro s'il y a un Syntoniseur dans le Main, Xyz s'il
+   y a au moins 4 monstres du bon niveau). Les cartes exclues ne sont jamais prises.
 
 **Limites** : l'algorithme optimise la *régularité des mains*. Il ne joue pas les combos et ne connaît pas la
 valeur fine de chaque carte au-delà de son rôle (starter, interruption, protection, destruction).
@@ -76,6 +78,18 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     extra_labels = dict(zip(owned_extra["id"].astype(int), owned_extra["nom"]))
     opponents = meta_opponents()
 
+    st.subheader("Moteur")
+    stock = P.archetypes_in_stock(con)
+    if not stock:
+        st.info("Aucun archétype dans ton stock : importe ta collection d'abord.")
+        return
+    names = [a for a, _ in stock]
+    engine = st.selectbox(
+        "Archétype à construire", names, index=names.index("Mekk-Knight") if "Mekk-Knight" in names else 0,
+        format_func=lambda a: f"{tr(ARCHETYPES, a)} ({dict(stock)[a]} cartes en stock)",
+        help="Les starters et les cartes du moteur se déduisent du texte des cartes de cet archétype.")
+    plan = P.Plan((engine,))
+
     st.subheader("Objectifs")
     w1, w2, w3, w4 = st.columns(4)
     w_first = w1.slider("Jouer en premier", 0.0, 2.0, 1.0, 0.1, help="Poids des mains fortes quand tu commences.")
@@ -83,7 +97,7 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     w_meta = w3.slider("Face au méta", 0.0, 2.0, 1.0 if opponents else 0.0, 0.1, disabled=not opponents,
                        help="Poids de l'indice de matchup contre les archétypes du méta (page Simulation méta).")
     w_off = w4.slider("Pénalité hors moteur", 0.0, 1.0, 0.3, 0.05,
-                      help="Pénalise les cartes qui ne servent pas le plan Mekk-Chevalier.")
+                      help="Pénalise les cartes qui ne servent ni le moteur, ni à interrompre, protéger ou détruire.")
 
     st.subheader("Contraintes du Main Deck")
     c1, c2, c3 = st.columns([1, 2, 2])
@@ -97,7 +111,7 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     e1, e2, e3 = st.columns([1, 2, 2])
     extra_size = e1.slider("Taille de l'Extra Deck", 0, 15, 15, help="15 cartes au plus.")
     extra_locked = e2.multiselect("Extra forcées", list(extra_labels), format_func=extra_labels.get,
-                                  placeholder="Choisir…", help="Prises en priorité, même hors du plan Mekk-Chevalier.")
+                                  placeholder="Choisir…", help="Prises en priorité, même hors du moteur.")
     extra_excluded = e3.multiselect("Extra exclues", [i for i in extra_labels if i not in extra_locked],
                                     format_func=extra_labels.get, placeholder="Choisir…")
     with st.expander("Réglages avancés"):
@@ -107,7 +121,7 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
         seed = a3.number_input("Graine aléatoire", 0, 10_000, 0, help="Changer la graine relance une autre recherche.")
 
     if st.button("Lancer l'algorithme", type="primary"):
-        opts = O.Options(size=size, w_first=w_first, w_second=w_second, w_meta=w_meta, w_offplan=w_off,
+        opts = O.Options(plan=plan, size=size, w_first=w_first, w_second=w_second, w_meta=w_meta, w_offplan=w_off,
                          locked={i: 1 for i in locked}, excluded=set(excluded), extra_size=extra_size,
                          extra_locked={i: 1 for i in extra_locked}, extra_excluded=set(extra_excluded),
                          iterations=iterations,
@@ -121,7 +135,8 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
             st.error(str(e))
             return
         bar.progress(1.0, text="Vérification sur de nouvelles mains…")
-        st.session_state["gen"] = {"result": result, "opts": opts, "eval": evaluate_main(result.main, opponents)}
+        st.session_state["gen"] = {"result": result, "opts": opts,
+                                   "eval": evaluate_main(result.main, opponents, plan)}
         bar.empty()
 
     gen = st.session_state.get("gen")
@@ -131,13 +146,16 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
 
     st.header("Résultat")
     decks = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks ORDER BY name")}
-    refs = st.multiselect("Comparer avec", list(decks), default=[d for d in (builds.NAME, "deck_mekk_beta") if d in decks],
+    plan = opts.plan
+    st.caption(f"Moteur : **{plan_name(plan)}**.")
+    refs = st.multiselect("Comparer avec", list(decks), default=[d for d in (builds.NAME, "deck_mekk_beta") if d in decks
+                                                                 and P.of_deck(con, decks[d], A.deck_cards(con, decks[d])) == plan],
                           placeholder="Choisir…")
     rows = {"Algorithme": ev}
     for name in refs:
         main = {c["id"]: c["quantity"] for c in A.deck_cards(con, decks[name]) if c["zone"] == "main"}
         if main:
-            rows[name] = evaluate_main(main, opponents)
+            rows[name] = evaluate_main(main, opponents, plan)
     table = pd.DataFrame(rows).T
     lower_better = {"Main bloquée en premier"}
     best = {col: (table[col].min() if col in lower_better else table[col].max()) for col in table}
@@ -162,10 +180,11 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     s1, s2 = st.columns([3, 1])
     name = s1.text_input("Nom du deck", value=f"algo_{date.today().isoformat()}")
     if s2.button("Enregistrer", type="primary", disabled=not name.strip() or name.strip() in decks):
-        notes = (f"Généré par l'algorithme (taille {opts.size}, poids premier {opts.w_first}, second {opts.w_second}, "
+        notes = (f"Généré par l'algorithme (moteur {plan_name(plan)}, taille {opts.size}, poids premier {opts.w_first}, second {opts.w_second}, "
                  f"méta {opts.w_meta}, hors moteur {opts.w_offplan}, {opts.iterations} itérations, graine {opts.seed}).\n\n"
                  + "\n".join(f"- {k} : {100 * v:.0f} %" for k, v in ev.items()))
-        con.execute("INSERT INTO decks (name, notes) VALUES (?, ?)", (name.strip(), notes))
+        con.execute("INSERT INTO decks (name, notes, plan) VALUES (?, ?, ?)",
+                    (name.strip(), notes, "|".join(plan.archetypes)))
         deck_id = con.execute("SELECT id FROM decks WHERE name = ?", (name.strip(),)).fetchone()[0]
         con.executemany("INSERT INTO deck_cards VALUES (?, ?, ?, ?)",
                         [(deck_id, i, "main", q) for i, q in result.main.items()]

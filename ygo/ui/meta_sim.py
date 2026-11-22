@@ -6,7 +6,7 @@ import streamlit as st
 from ygo import analysis as A
 from ygo import meta
 from ygo import simulation as S
-from ygo.ui.core import cards_gallery, con, deck_signature, tone_for
+from ygo.ui.core import cards_gallery, con, deck_plan, deck_signature, tone_for
 from ygo.ui.style import TONES, page_header, pill, status_tile
 
 
@@ -15,9 +15,9 @@ META_LISTS_PER_ARCHETYPE = 3  # listes les plus récentes moyennées par archét
 
 @st.cache_data(show_spinner=False)
 def cached_matchups(deck_id: int, signature: tuple, opp_lists: tuple) -> list[dict]:
-    """Tous les matchups d'un deck en une passe. signature : contenu du deck, pour recalculer s'il change."""
+    """Tous les matchups d'un deck en une passe. signature : contenu et moteur du deck, pour recalculer s'ils changent."""
     deck = S.main_deck(A.deck_cards(con, deck_id))
-    res = S.matchups(deck, [meta.resolve(con, list(ids)) for ids in opp_lists])
+    res = S.matchups(deck, [meta.resolve(con, list(ids)) for ids in opp_lists], deck_plan(deck_id))
     return [{**vars(m), "index": m.index} for m in res]
 
 
@@ -148,7 +148,7 @@ combos ni les tiens.
     game = S.example_game(my_deck, opp_deck, st.session_state.get("meta_seed", 0))
     for label, key, first in (("Tu commences", "first", True), ("Tu joues en second", "second", False)):
         mine, theirs = game[key]
-        verdict, reasons = S.describe_game(mine, theirs, first)
+        verdict, reasons = S.describe_game(mine, theirs, first, deck_plan(decks[build]))
         good = verdict in ("Plateau qui tient", "Retour fort")
         ok = verdict in ("Tour 1 réussi, plateau fragile", "Retour possible")
         st.markdown(f"#### {label}")

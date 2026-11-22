@@ -1,11 +1,12 @@
-"""Simulation de mains de départ (Monte-Carlo) pour comparer des decks Mekk-Chevalier.
+"""Simulation de mains de départ (Monte-Carlo) pour comparer des decks, quel que soit leur moteur.
 
-Hypothèses de jeu (volontairement simples, affichées dans l'IHM) :
-- Starter : un monstre Mekk-Chevalier, ou « Mémoire de l'Héritage du Monde » (invoque un Mekk depuis le deck).
-- En premier, le terrain adverse est vide : un Mekk ne peut s'invoquer que si tu poses toi-même une carte dans
-  sa colonne. Main jouable = Mémoire, ou un Mekk + une Magie/Piège à poser, ou deux Mekk.
-- En second, l'adversaire a rempli son terrain : un seul Mekk suffit à démarrer.
-- Main forte en premier = jouable + au moins une protection (Piège Héritage du Monde, Piège générique efficace
+Hypothèses de jeu (volontairement simples, affichées dans l'IHM), rôles définis dans plan.py :
+- Starter : carte du moteur qui lance le jeu seule (s'invoque depuis la main, ou va chercher dans le deck).
+- En premier, le terrain adverse est vide : un starter « de colonne » (Mekk-Chevalier) ne s'invoque que si tu
+  poses toi-même une autre carte dans sa colonne. Main jouable = un starter libre, ou un starter de colonne
+  + une Magie/Piège à poser, ou deux starters de colonne.
+- En second, l'adversaire a rempli son terrain : un seul starter suffit à démarrer.
+- Main forte en premier = jouable + au moins une protection (Piège du moteur, Piège générique efficace
   comme Jugement Solennel, ou interruption depuis la main).
 - Main forte en second = jouable + au moins une interruption depuis la main ou une carte de destruction.
 """
@@ -13,31 +14,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import analysis as A
+from . import plan as P
 
-MEMORY = "World Legacy's Memory"
 N_HANDS = 20_000
 
-FLAGS = ("starter", "mekk", "memory", "backrow", "trap", "interrupt", "protect", "breaker", "offplan")
+FLAGS = ("starter", "free", "column", "backrow", "trap", "interrupt", "protect", "breaker", "offplan", "engine")
 
 
-def card_flags(c: dict) -> dict:
-    role = A.role(c)
-    frame = c["frame_type"]
-    return {
-        "mekk": role == A.MEKK,
-        "memory": c["name_en"] == MEMORY,
-        "starter": role == A.MEKK or c["name_en"] == MEMORY,
-        "backrow": frame in ("spell", "trap"),
-        # protection posée : Pièges de l'archétype ou Pièges génériques efficaces (pas Pommes d'Or & co)
-        "trap": frame == "trap" and (c.get("archetype") == "Mekk-Knight" or c["name_en"] in A.PROTECTION_TRAPS),
-        "interrupt": role == A.INTERRUPT,
-        # protection gardée après ton tour en premier ; les Mulcharmy exigent de ne contrôler aucune carte
-        "protect": (frame == "trap" and (c.get("archetype") == "Mekk-Knight" or c["name_en"] in A.PROTECTION_TRAPS))
-                   or (role == A.INTERRUPT and not c["name_en"].startswith("Mulcharmy")),
-        "breaker": role == A.BREAKER,
-        "offplan": role in (A.PSYCHIC, A.OTHER),
-    }
+def card_flags(c: dict, plan: P.Plan) -> dict:
+    return P.flags(c, plan)
 
 
 def main_deck(cards: list[dict]) -> list[dict]:
@@ -45,15 +30,15 @@ def main_deck(cards: list[dict]) -> list[dict]:
     return [c for c in cards if c["zone"] == "main" for _ in range(c["quantity"])]
 
 
-def _matrix(deck: list[dict]) -> np.ndarray:
-    return np.array([[card_flags(c)[f] for f in FLAGS] for c in deck], dtype=np.int8)
+def _matrix(deck: list[dict], plan: P.Plan) -> np.ndarray:
+    return np.array([[card_flags(c, plan)[f] for f in FLAGS] for c in deck], dtype=np.int8)
 
 
 def _verdicts(counts: dict, first: bool) -> tuple[np.ndarray, np.ndarray]:
     """counts : nombre de cartes de chaque catégorie dans chaque main (tableaux numpy ou entiers)."""
     if first:
-        playable = (counts["memory"] >= 1) | ((counts["mekk"] >= 1) & (counts["backrow"] - counts["memory"] >= 1)) \
-                   | (counts["mekk"] >= 2)
+        playable = (counts["free"] >= 1) | ((counts["column"] >= 1) & (counts["backrow"] >= 1)) \
+                   | (counts["column"] >= 2)
         strong = playable & (counts["protect"] >= 1)
     else:
         playable = counts["starter"] >= 1
@@ -73,8 +58,8 @@ class Kpis:
     n: int = N_HANDS
 
 
-def simulate(deck: list[dict], n: int = N_HANDS, seed: int = 0) -> Kpis:
-    m = _matrix(deck)
+def simulate(deck: list[dict], plan: P.Plan | None = None, n: int = N_HANDS, seed: int = 0) -> Kpis:
+    m = _matrix(deck, plan or P.detect(deck))
     rng = np.random.default_rng(seed)
     # 6 premières cartes d'un mélange aléatoire ; les 5 premières forment la main en premier
     order = np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]
@@ -94,34 +79,33 @@ def margin(p: float, q: float, n: int = N_HANDS) -> float:
     return 2 * np.sqrt(p * (1 - p) / n + q * (1 - q) / n)
 
 
-def describe_hand(hand: list[dict], first: bool) -> tuple[str, list[str]]:
+def describe_hand(hand: list[dict], first: bool, plan: P.Plan) -> tuple[str, list[str]]:
     """Verdict lisible d'une main d'exemple et les raisons."""
-    counts = {f: sum(card_flags(c)[f] for c in hand) for f in FLAGS}
+    flags = [card_flags(c, plan) for c in hand]
+    counts = {f: sum(fl[f] for fl in flags) for f in FLAGS}
     playable, strong = (bool(v) for v in _verdicts(counts, first))
     reasons = []
-    names = lambda flag: ", ".join(sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)[flag]}))
-    if counts["memory"]:
-        reasons.append(f"{names('memory')} invoque un Mekk-Chevalier depuis le deck.")
-    if counts["mekk"]:
-        reasons.append(f"Starter(s) : {names('mekk')}.")
-        if first and not counts["memory"]:
-            if counts["backrow"] - counts["memory"] >= 1:
+
+    def names(*keys):
+        return ", ".join(sorted({c["name_fr"] or c["name_en"] for c, fl in zip(hand, flags) if any(fl[k] for k in keys)}))
+
+    if counts["starter"]:
+        reasons.append(f"Starter(s) : {names('starter')}.")
+        if first and not counts["free"]:
+            if counts["backrow"] >= 1:
                 reasons.append("Une Magie/Piège à poser crée la colonne nécessaire à l'invocation.")
-            elif counts["mekk"] >= 2:
-                reasons.append("Deux Mekk : le premier posé ouvre la colonne du second.")
+            elif counts["column"] >= 2:
+                reasons.append("Deux starters de colonne : le premier posé ouvre la colonne du second.")
             else:
-                reasons.append("Terrain vide et rien à poser : le Mekk ne peut pas s'invoquer.")
+                reasons.append("Terrain vide et rien à poser : le starter ne peut pas s'invoquer.")
     else:
-        if not counts["memory"]:
-            reasons.append("Aucun starter : la main ne peut pas lancer le moteur Mekk.")
+        reasons.append(f"Aucun starter : la main ne peut pas lancer le moteur ({plan.label}).")
     if first and counts["protect"]:
-        reasons.append("Protection pour le tour adverse : " + ", ".join(
-            sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)["protect"]})) + ".")
+        reasons.append(f"Protection pour le tour adverse : {names('protect')}.")
     if not first and counts["interrupt"] + counts["breaker"]:
-        reasons.append("De quoi gêner l'adversaire : " + ", ".join(
-            sorted({c["name_fr"] or c["name_en"] for c in hand if card_flags(c)["interrupt"] or card_flags(c)["breaker"]})) + ".")
+        reasons.append(f"De quoi gêner l'adversaire : {names('interrupt', 'breaker')}.")
     if counts["offplan"]:
-        reasons.append(f"Hors moteur Mekk : {names('offplan')}.")
+        reasons.append(f"Hors moteur : {names('offplan')}.")
     verdict = "Forte" if strong else "Jouable" if playable else "Bloquée"
     return verdict, reasons
 
@@ -160,7 +144,8 @@ def _opp_draws(opp_deck: list[dict], n: int, rng) -> tuple[np.ndarray, np.ndarra
     return d[:, :6, 0].sum(axis=1), d[:, :6, 1].sum(axis=1), d[:, :5, 0].sum(axis=1)
 
 
-def matchups(deck: list[dict], opp_decks: list[list[dict]], n: int = 10_000, seed: int = 0) -> list[Matchup]:
+def matchups(deck: list[dict], opp_decks: list[list[dict]], plan: P.Plan | None = None, n: int = 10_000,
+             seed: int = 0) -> list[Matchup]:
     """Hypothèses (affichées dans l'IHM) :
     - chaque interruption adverse en main coupe une ligne de jeu : il faut un starter de plus qu'elles ;
     - en premier, l'adversaire a 6 cartes ; ton plateau tient si tu gardes au moins une protection,
@@ -168,7 +153,7 @@ def matchups(deck: list[dict], opp_decks: list[list[dict]], n: int = 10_000, see
     - en second, l'adversaire a 5 cartes et garde ses interruptions pour ton tour.
     Tes mains sont tirées une seule fois et confrontées à chaque adversaire."""
     rng = np.random.default_rng(seed)
-    drawn = _matrix(deck)[np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]]
+    drawn = _matrix(deck, plan or P.detect(deck))[np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]]
     first = {f: drawn[:, :5, i].sum(axis=1) for i, f in enumerate(FLAGS)}
     second = {f: drawn[:, :6, i].sum(axis=1) for i, f in enumerate(FLAGS)}
     playable_first, _ = _verdicts(first, True)
@@ -184,8 +169,9 @@ def matchups(deck: list[dict], opp_decks: list[list[dict]], n: int = 10_000, see
     return out
 
 
-def matchup(deck: list[dict], opp_deck: list[dict], n: int = 10_000, seed: int = 0) -> Matchup:
-    return matchups(deck, [opp_deck], n, seed)[0]
+def matchup(deck: list[dict], opp_deck: list[dict], plan: P.Plan | None = None, n: int = 10_000,
+            seed: int = 0) -> Matchup:
+    return matchups(deck, [opp_deck], plan, n, seed)[0]
 
 
 def example_game(deck: list[dict], opp_deck: list[dict], seed: int) -> dict:
@@ -195,10 +181,10 @@ def example_game(deck: list[dict], opp_deck: list[dict], seed: int) -> dict:
     return {"first": (pick(deck, 5), pick(opp_deck, 6)), "second": (pick(deck, 6), pick(opp_deck, 5))}
 
 
-def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool) -> tuple[str, list[str]]:
+def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool, plan: P.Plan) -> tuple[str, list[str]]:
     """Verdict d'une partie d'exemple, avec les mêmes règles que matchup()."""
     from .meta import opponent_flags
-    counts = {f: sum(card_flags(c)[f] for c in my_hand) for f in FLAGS}
+    counts = {f: sum(card_flags(c, plan)[f] for c in my_hand) for f in FLAGS}
     nm = lambda c: c["name_fr"] or c["name_en"]
     hts = [nm(c) for c in opp_hand if opponent_flags(c)["handtrap"]]
     brs = [nm(c) for c in opp_hand if opponent_flags(c)["breaker"]]
@@ -207,7 +193,7 @@ def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool) -> tup
                + (f" : {', '.join(hts)}." if hts else ".")]
     passes = playable and counts["starter"] >= len(hts) + 1
     if not playable:
-        reasons.append("Ta main ne permet pas de lancer le moteur Mekk.")
+        reasons.append(f"Ta main ne permet pas de lancer le moteur ({plan.label}).")
     elif not passes:
         reasons.append("Chaque interruption coupe une ligne : il te manque un starter de secours.")
     if first:
@@ -229,30 +215,36 @@ def describe_game(my_hand: list[dict], opp_hand: list[dict], first: bool) -> tup
 
 LEVERS = {
     "Retirer 1 carte hors moteur (deck plus fin)": ("offplan", None),
-    "Remplacer 1 carte hors moteur par 1 starter Mekk": ("offplan", "starter"),
+    "Remplacer 1 carte hors moteur par 1 starter du moteur": ("offplan", "starter"),
     "Remplacer 1 carte hors moteur par 1 interruption": ("offplan", "interrupt"),
-    "Remplacer 1 carte hors moteur par 1 Piège Héritage": ("offplan", "trap"),
-}
-
-_TEMPLATES = {
-    "starter": {"frame_type": "effect", "archetype": "Mekk-Knight", "name_en": "_starter", "race": "Psychic"},
-    "interrupt": {"frame_type": "effect", "archetype": None, "name_en": "Effect Veiler", "race": "Spellcaster"},
-    "trap": {"frame_type": "trap", "archetype": "Mekk-Knight", "name_en": "_trap", "race": "Continuous"},
+    "Remplacer 1 carte hors moteur par 1 Piège du moteur": ("offplan", "trap"),
 }
 
 
-def levers(deck: list[dict], n: int = N_HANDS, seed: int = 0) -> list[dict]:
+def _template(kind: str, plan: P.Plan) -> dict:
+    """Carte fictive du rôle voulu ; starter et Piège appartiennent à l'archétype du moteur."""
+    arch = plan.archetypes[0] if plan.archetypes else None
+    return {
+        "starter": {"frame_type": "effect", "archetype": arch, "name_en": "_starter",
+                    "desc_en": "Add 1 card from your Deck to your hand."},
+        "interrupt": {"frame_type": "effect", "archetype": None, "name_en": "Effect Veiler", "desc_en": ""},
+        "trap": {"frame_type": "trap", "archetype": arch, "name_en": "_trap", "desc_en": ""},
+    }[kind]
+
+
+def levers(deck: list[dict], plan: P.Plan | None = None, n: int = N_HANDS, seed: int = 0) -> list[dict]:
     """Effet de modifications simples sur les KPI, pour montrer ce qui rapporte le plus."""
-    base = simulate(deck, n, seed)
-    victim = next((i for i, c in enumerate(deck) if card_flags(c)["offplan"]), None)
+    plan = plan or P.detect(deck)
+    base = simulate(deck, plan, n, seed)
+    victim = next((i for i, c in enumerate(deck) if card_flags(c, plan)["offplan"]), None)
     out = []
     for label, (remove, add) in LEVERS.items():
-        if victim is None:
+        if victim is None or (add in ("starter", "trap") and not plan.archetypes):
             continue
         new = deck[:victim] + deck[victim + 1:]
         if add:
-            new.append({"name_fr": None, **_TEMPLATES[add]})
-        k = simulate(new, n, seed)
+            new.append({"name_fr": None, **_template(add, plan)})
+        k = simulate(new, plan, n, seed)
         out.append({"label": label, "kpis": k,
                     "delta_first": k.playable_first - base.playable_first,
                     "delta_strong_first": k.strong_first - base.strong_first,

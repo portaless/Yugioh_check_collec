@@ -1,6 +1,6 @@
 # Collection Yu-Gi-Oh!
 
-Base SQLite de ma collection (source : `yugioh.xlsx`) enrichie avec le catalogue YGOPRODeck, et IHM Streamlit pour parcourir les cartes, construire des decks Mekk-Chevalier et les mesurer face au méta.
+Base SQLite de ma collection (source : `yugioh.xlsx`) enrichie avec le catalogue YGOPRODeck, et IHM Streamlit pour parcourir les cartes, construire des decks de n'importe quel archétype et les mesurer face au méta.
 
 ## Démarrage
 
@@ -45,14 +45,14 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 | Analyse | Analyse | Composition et probabilités d'un deck |
 | | Duel de decks | Deux decks face à face : KPI, mains d'exemple, leviers |
 | | Simulation méta | Tes builds contre les decks qui gagnent en tournoi |
-| | Générateur de build | Algorithme d'optimisation (recuit simulé) sous contraintes de stock et de banlist |
+| | Générateur de build | Meilleur deck d'un archétype avec ton stock : recuit simulé sous contraintes de stock et de banlist |
 | Données | Corrections / Import | Reconnaissance des noms, version Cardmarket des raretés incertaines, réimport, prix, banlist, méthode |
 
 ## Organisation du code
 
 - `app.py` : configuration et navigation uniquement.
 - `ygo/` : le cœur, sans interface — `db.py` (schéma), `importer.py` (Excel + catalogue), `analysis.py` (rôles, légalité,
-  probabilités), `simulation.py` (mains et matchups), `optimizer.py` (générateur), `meta.py` (decks de tournoi),
+  probabilités), `plan.py` (moteur d'un deck et rôle des cartes, lus dans leur texte), `simulation.py` (mains et matchups), `optimizer.py` (générateur), `meta.py` (decks de tournoi),
   `fr.py` (traductions), `builds.py` (proposition manuelle `mekk_opti`), `rarity.py` (raretés),
   `cardmarket.py` (prix par impression), `cardtrader.py` (rareté exacte des produits Cardmarket),
   `bourse.py` (historique des prix).
@@ -60,6 +60,14 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 - `ygo/viewer.html` : visionneuse de cartes exécutée dans le navigateur.
 - `.streamlit/config.toml` : thème (bleu nuit et or, Cinzel / Inter).
 - `tests/` : tests unitaires sur une base autonome + rendu de chaque page.
+
+## Moteur d'un deck
+
+Chaque deck a un **moteur** : l'archétype autour duquel il est construit (choix « Moteur du deck » dans le
+Constructeur, l'Analyse et le Duel ; par défaut, l'archétype le plus présent). Les rôles se déduisent du texte
+anglais des cartes, pour n'importe quel archétype : *starter* (s'invoque depuis la main, ou ajoute / invoque /
+envoie au cimetière depuis le deck), *moteur* (carte de l'archétype ou qui le nomme), interruption, protection,
+destruction, et *hors moteur*. C'est une heuristique : elle ne joue pas les combos.
 
 ## Données
 

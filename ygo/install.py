@@ -33,10 +33,10 @@ def needs_install(con) -> bool:
 
 def _decks(con) -> list[dict]:
     decks = []
-    for d in con.execute("SELECT id, name, notes FROM decks ORDER BY name"):
+    for d in con.execute("SELECT id, name, notes, plan FROM decks ORDER BY name"):
         cards = [[r["card_id"], r["zone"], r["quantity"]] for r in con.execute(
             "SELECT card_id, zone, quantity FROM deck_cards WHERE deck_id = ? ORDER BY zone, card_id", (d["id"],))]
-        decks.append({"name": d["name"], "notes": d["notes"], "cards": cards})
+        decks.append({"name": d["name"], "notes": d["notes"], "plan": d["plan"], "cards": cards})
     return decks
 
 
@@ -60,7 +60,8 @@ def restore_decks(con) -> int:
     for d in json.loads(DECKS_PATH.read_text(encoding="utf8"))["decks"]:
         if d["name"] in existing:
             continue
-        deck_id = con.execute("INSERT INTO decks (name, notes) VALUES (?, ?)", (d["name"], d["notes"])).lastrowid
+        deck_id = con.execute("INSERT INTO decks (name, notes, plan) VALUES (?, ?, ?)",
+                              (d["name"], d["notes"], d.get("plan"))).lastrowid
         con.executemany("INSERT INTO deck_cards VALUES (?, ?, ?, ?)",
                         [(deck_id, c, zone, q) for c, zone, q in d["cards"] if c in known])
         n += 1

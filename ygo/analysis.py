@@ -25,43 +25,16 @@ GENERIC_EXTRA = {
 }
 
 
-MEKK = "Monstre Mekk-Chevalier"
-LEGACY = "Magie/Piège Héritage du Monde"
-EXTRA_MEKK = "Extra Mekk-Chevalier"
+# Rôles génériques ; ceux liés au moteur du deck (starter, soutien…) sont dans plan.py
 INTERRUPT = "Interruption depuis la main"
 BREAKER = "Destruction du terrain adverse"
 EXTRA_GENERIC = "Extra générique"
-PSYCHIC = "Moteur Psychique"
-OTHER = "Autre"
 
 ROLE_HELP = {
-    MEKK: "Le cœur du deck : ils s'invoquent seuls dès que 2 cartes sont dans la même colonne.",
-    LEGACY: "Soutien de l'archétype : recherche, recyclage, négation dans la colonne d'un Mekk-Chevalier.",
     INTERRUPT: "Cartes jouées depuis la main pendant le tour adverse pour couper son combo (« handtraps »).",
     BREAKER: "Retirent les cartes adverses : indispensables quand tu joues en second.",
-    PSYCHIC: "Ancien soutien Psychique : peu de synergie avec les Mekk-Chevaliers.",
-    OTHER: "Cartes qui n'entrent dans aucune autre catégorie.",
-    EXTRA_MEKK: "Monstres Lien de l'archétype.",
     EXTRA_GENERIC: "Monstres d'Extra Deck invocables avec n'importe quels monstres.",
 }
-
-
-def role(card: dict) -> str:
-    name, arch, frame = card["name_en"], card["archetype"], card["frame_type"]
-    if arch == "Mekk-Knight" and not is_extra(frame) and frame not in ("spell", "trap"):
-        return MEKK
-    if arch == "Mekk-Knight":
-        return LEGACY if frame in ("spell", "trap") else EXTRA_MEKK
-    if name in HANDTRAPS:
-        return INTERRUPT
-    if name in BOARD_BREAKERS:
-        return BREAKER
-    if is_extra(frame):
-        return EXTRA_GENERIC
-    if card["race"] == "Psychic" or name in ("Emergency Teleport", "Psychic Feel Zone", "Telepathic Power",
-                                              "Psychic Overload", "Assault Mode Activate"):
-        return PSYCHIC
-    return OTHER
 
 
 def deck_cards(con, deck_id: int) -> list[dict]:
@@ -109,22 +82,22 @@ def p_at_least(hits: int, deck_size: int, hand: int = 5, k: int = 1) -> float:
     return 1 - miss / comb(deck_size, hand)
 
 
-def suggestions(con, deck_id: int) -> list[dict]:
-    """Cartes du stock absentes du deck qui ont leur place dans un deck Mekk-Chevalier."""
+def suggestions(con, deck_id: int, plan) -> list[dict]:
+    """Cartes du stock absentes du deck qui ont leur place dans son moteur (plan.Plan), ou partout."""
     in_deck = {r["card_id"] for r in con.execute("SELECT card_id FROM deck_cards WHERE deck_id = ?", (deck_id,))}
     out = []
     for r in con.execute("""SELECT c.*, o.owned FROM owned o JOIN cards c ON c.id = o.card_id"""):
         c = dict(r)
         if c["id"] in in_deck or BAN_LIMIT.get(c["ban_tcg"], 3) == 0:
             continue
-        if c["archetype"] == "Mekk-Knight":
-            why = "Carte de l'archétype"
+        if plan.engine(c):
+            why = f"Carte du moteur ({plan.label})"
         elif c["name_en"] in HANDTRAPS:
             why = "Interruption depuis la main, jouable dans tous les decks"
         elif c["name_en"] in BOARD_BREAKERS:
             why = "Détruit le terrain adverse, utile en jouant second"
         elif c["name_en"] in GENERIC_EXTRA:
-            why = "Extra Deck générique invocable avec tes Mekk-Chevaliers"
+            why = "Extra Deck générique"
         else:
             continue
         c["why"] = why

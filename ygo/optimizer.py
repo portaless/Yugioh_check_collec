@@ -1,4 +1,4 @@
-"""Générateur de build Mekk-Chevalier : optimisation sous contraintes de stock et de banlist.
+"""Générateur de build : le meilleur deck d'un moteur (archétype) avec ton stock, sous contrainte de banlist.
 
 Algorithme
 1. Réserve : les cartes de Main Deck possédées, plafonnées à min(stock, banlist, 3) exemplaires ; cartes forcées
@@ -13,14 +13,16 @@ Algorithme
 3. Départ glouton : les cartes les plus utiles au modèle (starters, interruptions, protections…).
 4. Recuit simulé : à chaque itération, on retire 1 exemplaire et on en ajoute 1 autre. Une amélioration est
    toujours gardée ; une dégradation l'est parfois au début (température), pour sortir des optimums locaux.
-5. Extra Deck : règles d'invocation (Liens Mekk, Extra génériques accessibles), dans la limite du stock.
+5. Extra Deck : règles d'invocation (Extra du moteur, puis Extra génériques invocables), dans la limite du stock.
 """
 import math
+from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from . import analysis as A
+from . import plan as P
 from . import simulation as S
 from .db import is_extra
 
@@ -29,6 +31,7 @@ GREEDY_VALUE = {"starter": 3.0, "interrupt": 1.5, "protect": 1.5, "breaker": 1.5
 
 @dataclass
 class Options:
+    plan: P.Plan = P.Plan(("Mekk-Knight",))
     size: int = 40
     w_first: float = 1.0
     w_second: float = 1.0
@@ -72,7 +75,7 @@ class Evaluator:
 
     def __init__(self, cards: list[dict], opts: Options, opponents: list[tuple[list[dict], float]]):
         self.opts = opts
-        self.flags = np.array([[S.card_flags(c)[f] for f in S.FLAGS] for c in cards], dtype=np.int16)
+        self.flags = np.array([[S.card_flags(c, opts.plan)[f] for f in S.FLAGS] for c in cards], dtype=np.int16)
         rng = np.random.default_rng(opts.seed)
         self.order = np.argsort(rng.random((opts.hands, opts.size)), axis=1)[:, :6]
         self.idx = {f: i for i, f in enumerate(S.FLAGS)}
@@ -108,11 +111,11 @@ class Evaluator:
         return value, parts
 
 
-def greedy(cards: list[dict], size: int) -> np.ndarray:
+def greedy(cards: list[dict], size: int, plan: P.Plan) -> np.ndarray:
     counts = np.array([c["min"] for c in cards])
     if counts.sum() > size:
         raise ValueError(f"Les cartes forcées font déjà {counts.sum()} cartes, plus que les {size} du deck.")
-    value = [sum(GREEDY_VALUE.get(f, 0) * v for f, v in S.card_flags(c).items()) for c in cards]
+    value = [sum(GREEDY_VALUE.get(f, 0) * v for f, v in S.card_flags(c, plan).items()) for c in cards]
     for i in sorted(range(len(cards)), key=lambda i: -value[i]):
         while counts[i] < cards[i]["max"] and counts.sum() < size:
             counts[i] += 1
@@ -125,7 +128,7 @@ def optimize(con, opts: Options, opponents: list[tuple[list[dict], float]] = (),
     cards = pool(con, opts)
     ev = Evaluator(cards, opts, list(opponents))
     rng = np.random.default_rng(opts.seed + 1)
-    current = greedy(cards, opts.size)
+    current = greedy(cards, opts.size, opts.plan)
     cur_score, cur_parts = ev.score(current)
     best, best_score, best_parts = current.copy(), cur_score, cur_parts
     mins = np.array([c["min"] for c in cards])
@@ -158,14 +161,20 @@ def optimize(con, opts: Options, opponents: list[tuple[list[dict], float]] = (),
 
 
 def build_extra(con, main: dict, opts: Options | None = None) -> dict:
-    """Extra Deck par règles : cartes forcées d'abord, puis Liens Mekk-Chevalier, puis Extra génériques
-    invocables avec des Mekk (cf. analysis.GENERIC_EXTRA), dans la limite du stock, de la banlist et de la
-    taille choisie (15 au plus). Les cartes exclues ne sont jamais prises."""
+    """Extra Deck par règles : cartes forcées d'abord, puis Extra du moteur, puis Extra génériques
+    (cf. analysis.GENERIC_EXTRA) réellement invocables avec le Main Deck : Synchro s'il contient un Syntoniseur,
+    Xyz s'il a au moins 4 monstres du bon niveau. Dans la limite du stock, de la banlist et de la taille choisie
+    (15 au plus). Les cartes exclues ne sont jamais prises."""
     opts = opts or Options()
     size = max(0, min(opts.extra_size, 15))
     rows = [dict(r) for r in con.execute("SELECT c.*, o.owned FROM owned o JOIN cards c ON c.id = o.card_id")]
-    has_girsu = any(con.execute("SELECT 1 FROM cards WHERE id = ? AND name_en LIKE 'Girsu%'", (i,)).fetchone()
-                    for i in main)
+    by_id = {c["id"]: c for c in rows}
+    in_main = [by_id[i] for i in main if i in by_id]
+    has_tuner = any("Tuner" in (c["type"] or "") for c in in_main)
+    levels = Counter()
+    for c in in_main:
+        if c["level"] and c["frame_type"] not in ("spell", "trap"):
+            levels[c["level"]] += main[c["id"]]
     ranked = []
     for c in rows:
         if not is_extra(c["frame_type"]) or c["id"] in opts.extra_excluded:
@@ -173,11 +182,12 @@ def build_extra(con, main: dict, opts: Options | None = None) -> dict:
         limit = min(c["owned"], A.BAN_LIMIT.get(c["ban_tcg"], 3), 3)
         if c["id"] in opts.extra_locked:
             prio = -1
-        elif c["archetype"] == "Mekk-Knight":
+        elif opts.plan.engine(c):
             prio = 0
         elif c["name_en"] in A.GENERIC_EXTRA:
-            # les Synchro génériques demandent un Syntoniseur : Girsu dans le Main Deck
-            if c["frame_type"].startswith("synchro") and not has_girsu:
+            if c["frame_type"].startswith("synchro") and not has_tuner:
+                continue
+            if c["frame_type"].startswith("xyz") and levels[c["level"]] < 4:
                 continue
             prio = 1
         else:

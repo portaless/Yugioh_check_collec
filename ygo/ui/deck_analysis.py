@@ -4,8 +4,9 @@ import pandas as pd
 import streamlit as st
 
 from ygo import analysis as A
+from ygo import plan as P
 from ygo.fr import BANLIST, tr
-from ygo.ui.core import con, deck_counts, deck_selector, pct
+from ygo.ui.core import con, deck_counts, deck_selector, pct, plan_name, plan_selector
 from ygo.ui.style import TONES, page_header, status_tile
 
 
@@ -18,8 +19,9 @@ def page_analysis():
     deck_id = deck_selector("analysis_deck", "Deck à analyser")
     if deck_id is None:
         return
+    plan = plan_selector(st, deck_id, "analysis_plan")
     cards = A.deck_cards(con, deck_id)
-    main = [c for c in cards if c["zone"] == "main"]
+    main =[c for c in cards if c["zone"] == "main"]
     n = deck_counts(cards)
     issues = A.check(cards)
     errors = [m for lvl, m in issues if lvl == "error"]
@@ -52,9 +54,10 @@ def page_analysis():
     st.header("2. Composition du Main Deck")
     by_role = {}
     for c in main:
-        by_role[A.role(c)] = by_role.get(A.role(c), 0) + c["quantity"]
+        by_role[P.role(c, plan)] = by_role.get(P.role(c, plan), 0) + c["quantity"]
+    engine = sum(c["quantity"] for c in main if P.flags(c, plan)["engine"])
     comp = pd.DataFrame([{"Rôle": r, "Cartes": q, "Part du deck": f"{100 * q / n['main']:.0f} %",
-                          "À quoi ça sert": A.ROLE_HELP.get(r, "")}
+                          "À quoi ça sert": P.ROLE_HELP.get(r, "")}
                          for r, q in sorted(by_role.items(), key=lambda x: -x[1])])
     st.dataframe(comp, hide_index=True, width="stretch")
 
@@ -68,8 +71,8 @@ def page_analysis():
 
     # (objectif, cartes, minimum, seuil "bon", seuil "moyen") : repères indicatifs, en jouant en premier
     checks = [
-        ("Au moins 1 monstre Mekk-Chevalier", count(A.MEKK), 1, .85, .70),
-        ("Au moins 2 monstres Mekk-Chevalier", count(A.MEKK), 2, .55, .40),
+        ("Au moins 1 starter du moteur", count(P.STARTER), 1, .85, .70),
+        ("Au moins 2 cartes du moteur", engine, 2, .55, .40),
         ("Au moins 1 interruption depuis la main", count(A.INTERRUPT), 1, .75, .55),
         ("Au moins 1 carte de destruction du terrain", count(A.BREAKER), 1, .50, .35),
     ]
@@ -83,7 +86,7 @@ def page_analysis():
     styled = pd.DataFrame(reg).style.map(
         lambda v: f"background-color: {tones[v][0]}; color: {tones[v][1]}; font-weight: 600", subset=["Verdict"])
     st.dataframe(styled, hide_index=True, width="stretch")
-    st.caption("Verdicts indicatifs : on ne vise pas le même taux pour « 1 Mekk-Chevalier » "
+    st.caption("Verdicts indicatifs : on ne vise pas le même taux pour « 1 starter » "
                "(indispensable) que pour « 1 carte de destruction » (bonus).")
 
     with st.expander("Calcul personnalisé"):
@@ -101,7 +104,7 @@ def page_analysis():
 
     # 4. Suggestions
     st.header("4. Cartes de ton stock à envisager")
-    sug = A.suggestions(con, deck_id)
+    sug = A.suggestions(con, deck_id, plan)
     if not sug:
         st.caption("Rien à signaler : tes cartes utiles sont déjà dans le deck.")
     for why in dict.fromkeys(s["why"] for s in sug):
