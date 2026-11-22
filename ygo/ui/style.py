@@ -22,6 +22,14 @@ div[class*="st-key-tile_"]:hover img { transform: translateY(-4px);
     box-shadow: 0 0 0 2px #E3B341, 0 10px 24px rgba(227,179,65,.25); }
 .tile-name { font-size: .84rem; margin-top: .45rem; line-height: 1.3; }
 .tile-badge { color: #E3B341; font-weight: 600; }
+.tile-art { position: relative; }
+.tile-ticker { position: absolute; top: 6px; right: 6px; padding: .12rem .45rem; border-radius: 999px;
+    font-size: .78rem; font-weight: 700; backdrop-filter: blur(3px); box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.tile-ticker.up { background: rgba(20,60,45,.92); color: #3DBE8B; border: 1px solid #3DBE8B; }
+.tile-ticker.down { background: rgba(70,25,25,.92); color: #E8776D; border: 1px solid #E8776D; }
+.tile-ticker.flat { background: rgba(23,27,48,.92); color: #A8A49A; border: 1px solid #2A3050; }
+.tile-sub { font-size: .76rem; color: #A8A49A; line-height: 1.35; }
+.tile-sub .up { color: #3DBE8B; font-weight: 600; } .tile-sub .down { color: #E8776D; font-weight: 600; }
 
 /* ---------- fiche agrandie : large, et adaptée à la hauteur de la fenêtre (boutons toujours visibles) */
 [role="dialog"] { width: min(1200px, 94vw) !important; max-width: none !important; }

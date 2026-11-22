@@ -205,10 +205,13 @@ def gallery(df: pd.DataFrame, key: str, per_row: int = 6):
 
 
 def tile_html(c) -> str:
+    """Colonnes optionnelles : 'badge' (texte après le nom), 'ticker' et 'sub' (HTML déjà échappé : pastille sur
+    l'image et ligne sous le nom, utilisés par la page Bourse)."""
     src = image_src(int(c["id"]), c["image_url"]) or ""
     badge = f" <span class='tile-badge'>{escape(str(c['badge']))}</span>" if c.get("badge") else ""
-    return (f"<img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}'>"
-            f"<div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>")
+    return (f"<div class='tile-art'><img class='card-img' src='{src}' loading='lazy' alt='{escape(c['nom'])}'>"
+            f"{c.get('ticker') or ''}</div>"
+            f"<div class='tile-name'><b>{escape(c['nom'])}</b>{badge}</div>{c.get('sub') or ''}")
 
 
 def deck_selector(key: str, label: str = "Deck") -> int | None:
