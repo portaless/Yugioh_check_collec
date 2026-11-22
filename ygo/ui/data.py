@@ -11,6 +11,7 @@ from ygo import bourse
 from ygo import builds
 from ygo import cardmarket as CM
 from ygo import cardtrader
+from ygo import completer
 from ygo import importer
 from ygo import install
 from ygo import rarity as R
@@ -151,9 +152,7 @@ def save_correction(excel_name: str, card_id: int):
     con.execute("UPDATE collection SET card_id = ?, match_score = 100 WHERE excel_name = ?", (card_id, excel_name))
     importer.fill_missing_french_names(con)
     con.commit()
-    data = json.loads(CORRECTIONS_PATH.read_text(encoding="utf8")) if CORRECTIONS_PATH.exists() else {}
-    data[excel_name] = card_id
-    CORRECTIONS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=4), encoding="utf8")
+    importer.add_corrections({excel_name: card_id})
 
 
 def page_import():
@@ -186,6 +185,25 @@ def page_import():
                 "depuis n'auront qu'un prix déduit (≈). Pour un jeton gratuit, voir l'onglet « Les prix » plus bas.")
     st.warning("Le réimport remplace toute la collection et les decks `deck_…` par le contenu de l'Excel. "
                "Les autres decks sont conservés.")
+    with st.expander("Compléter l'Excel automatiquement"):
+        st.markdown("Note seulement le **nom**, le **nombre** et le **code de l'extension** (« CRMS », imprimé sous "
+                    "l'illustration) dans la colonne `code`, ou dans `rareté`. Ce bouton remplit le reste : catégorie, "
+                    "étoiles, code complet, et la rareté quand l'extension n'en a qu'une. Sinon, la case rareté est "
+                    "surlignée en jaune avec les choix possibles en commentaire. Ferme l'Excel avant.")
+        if st.button("Compléter l'Excel puis réimporter"):
+            try:
+                report = completer.complete(con)
+                st.session_state["import_report"] = importer.import_excel(con)
+                st.success(f"{report['done']} ligne(s) complétée(s).")
+                if report["choose"]:
+                    st.warning("Rareté à choisir (cases jaunes) :\n\n" + "\n".join(f"- {l}" for l in report["choose"]))
+                if report["learned"]:
+                    st.info("Reconnues grâce à l'extension, à vérifier dans la fiche :\n\n"
+                            + "\n".join(f"- {n}" for n in report["learned"]))
+                if report["unknown"]:
+                    st.error("Non trouvées :\n\n" + "\n".join(f"- {l}" for l in report["unknown"]))
+            except PermissionError:
+                st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
     c1, c2, c3, c4 = st.columns(4)
     if c1.button("Réimporter l'Excel", type="primary"):
         st.session_state["import_report"] = importer.import_excel(con)

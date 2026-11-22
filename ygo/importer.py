@@ -185,6 +185,13 @@ def tidy_excel(path: Path = EXCEL_PATH) -> int:
     return removed
 
 
+def add_corrections(names: dict[str, int]) -> None:
+    """Ajoute des noms de l'Excel associés à leur carte dans corrections.json."""
+    data = json.loads(CORRECTIONS_PATH.read_text(encoding="utf8")) if CORRECTIONS_PATH.exists() else {}
+    data.update(names)
+    CORRECTIONS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=4), encoding="utf8")
+
+
 def load_corrections(con) -> None:
     if not CORRECTIONS_PATH.exists():
         return

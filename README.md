@@ -67,6 +67,8 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 - Colonnes lues : `carte`, `nombre`, `rareté`, `code` (facultatif, ex. `CRMS-FR042`), et en aide à la reconnaissance `magie`/`piège`/`monstre`,
   `fusion`/`synchro`/`xyz`/`link`, `étoile` (détails dans la page Import).
 - Une même carte peut être notée sur plusieurs lignes : les lignes identiques (hors `nombre`) sont regroupées et leurs quantités additionnées, dans la base comme dans l'Excel (si le fichier n'est pas ouvert).
+- Excel abrégé : nom, nombre et préfixe d'extension suffisent ; Import → « Compléter l'Excel » (ou `python -m ygo.completer`)
+  remplit le reste et surligne en jaune les raretés à choisir.
 - `corrections.json` : noms de l'Excel associés à la bonne carte (rempli à la main ou depuis la page **Corrections**).
 - `versions_cardmarket.json` : produit Cardmarket choisi à la main quand la rareté d'un produit est incertaine.
 - `historique_prix.csv` / `historique_collection.csv` : relevés quotidiens de la page Bourse (prix de chaque

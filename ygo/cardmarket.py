@@ -54,9 +54,10 @@ def norm(name: str) -> str:
 
 
 def split_code(code: str | None) -> tuple[str, str] | None:
-    """'CRMS-FR042' -> ('CRMS', '042') : le préfixe et le numéro, sans la langue."""
-    m = re.match(r"^\s*([A-Z0-9]+)-[A-Z]{0,2}(\d+)", str(code or "").upper())
-    return (m.group(1), m.group(2)) if m else None
+    """'CRMS-FR042' -> ('CRMS', '042') : le préfixe et le numéro, sans la langue.
+    Tolère la lettre O pour un zéro, coquille du catalogue (« LAVD-ENO04 »)."""
+    m = re.match(r"^\s*([A-Z0-9]+)-[A-Z]{0,2}([\dO]*\d[\dO]*)", str(code or "").upper())
+    return (m.group(1), m.group(2).replace("O", "0")) if m else None
 
 
 def same_code(printed: str | None, owned: str) -> bool:
