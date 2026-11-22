@@ -6,7 +6,10 @@ derrière chaque produit Cardmarket ; les prix restent ceux de Cardmarket.
 
 Le jeton personnel se trouve dans les paramètres du profil CardTrader (compte gratuit). Il se met dans
 data/cardtrader_token.txt (non versionné) ou dans la variable d'environnement CARDTRADER_TOKEN.
+L'index obtenu est aussi copié, compressé, dans cardtrader_index.json.gz (versionné) : un clone du dépôt
+a ainsi les raretés exactes sans jeton.
 """
+import gzip
 import json
 import os
 import time
@@ -14,12 +17,13 @@ import time
 import requests
 
 from . import rarity as R
-from .db import DATA_DIR
+from .db import DATA_DIR, ROOT
 
 API = "https://api.cardtrader.com/api/v2"
 TOKEN_PATH = DATA_DIR / "cardtrader_token.txt"
 CACHE_DIR = DATA_DIR / "cardtrader"
 INDEX_PATH = CACHE_DIR / "cardmarket_index.json"
+SHARED_PATH = ROOT / "cardtrader_index.json.gz"
 
 
 def token() -> str | None:
@@ -77,10 +81,17 @@ def download(refresh: bool = False, log=print) -> dict[int, dict]:
         if n % 100 == 0:
             log(f"  {n}/{len(expansions)} extensions lues")
     INDEX_PATH.write_text(json.dumps(index), encoding="utf8")
+    # mtime=0 : même contenu, même fichier, pas de faux changement pour git
+    SHARED_PATH.write_bytes(gzip.compress(json.dumps(index, sort_keys=True).encode("utf8"), 9, mtime=0))
     return index
 
 
 def load_index() -> dict[int, dict]:
-    if not INDEX_PATH.exists():
+    """Index téléchargé avec le jeton, sinon la copie versionnée du dépôt."""
+    if INDEX_PATH.exists():
+        data = INDEX_PATH.read_text(encoding="utf8")
+    elif SHARED_PATH.exists():
+        data = gzip.decompress(SHARED_PATH.read_bytes()).decode("utf8")
+    else:
         return {}
-    return {int(k): v for k, v in json.loads(INDEX_PATH.read_text(encoding="utf8")).items()}
+    return {int(k): v for k, v in json.loads(data).items()}

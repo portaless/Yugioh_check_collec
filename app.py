@@ -4,6 +4,8 @@ Ce fichier ne fait que la configuration et la navigation ; les pages sont dans y
 """
 import streamlit as st
 
+from ygo import install
+
 st.set_page_config(page_title="Ma collection Yu-Gi-Oh!", page_icon="🃏", layout="wide")
 
 from ygo.ui.bourse import page_bourse  # noqa: E402  (après set_page_config)
@@ -14,10 +16,22 @@ from ygo.ui.deck_analysis import page_analysis  # noqa: E402
 from ygo.ui.duel import page_duel  # noqa: E402
 from ygo.ui.generator import page_generator  # noqa: E402
 from ygo.ui.meta_sim import page_meta  # noqa: E402
-from ygo.ui.style import apply_style  # noqa: E402
+from ygo.ui.style import apply_style, page_header  # noqa: E402
 
 apply_style()
 st.logo("static/logo.svg", size="large")
+
+if install.needs_install(con):  # nouveau clone du dépôt : data/ se construit au premier lancement
+    page_header("Première installation", "Téléchargement des cartes, du méta et des prix : quelques minutes, "
+                "une seule fois. Ne ferme pas la page.", "Bienvenue")
+    with st.status("Installation…", expanded=True) as status:
+        def step(i, label):
+            status.update(label=f"Étape {i + 1}/{len(install.STEPS)} : {label}…")
+            st.write(f"{i + 1}. {label}")
+        install.install(con, log=step)
+        status.update(label="Installation terminée", state="complete")
+    st.cache_data.clear()
+    st.rerun()
 
 pages = {
     "Ma collection": [
@@ -43,3 +57,4 @@ if unmatched:
     st.sidebar.warning(f"{unmatched} carte(s) non reconnue(s) → page Corrections")
 
 current.run()
+install.export_decks(con)  # decks.json suit les decks de l'IHM, pour les clones du dépôt

@@ -132,3 +132,16 @@ def test_optimizer_prefers_engine_cards_over_off_plan(con):
 def test_optimizer_reports_impossible_constraints(con):
     with pytest.raises(ValueError):
         O.optimize(con, O.Options(size=40, excluded=set(range(1, 21)) - {1}))
+
+
+def test_decks_survive_a_fresh_clone(con, tmp_path, monkeypatch):
+    from ygo import install
+    monkeypatch.setattr(install, "DECKS_PATH", tmp_path / "decks.json")
+    deck_id = con.execute("INSERT INTO decks (name, notes) VALUES ('mon deck', 'note')").lastrowid
+    con.executemany("INSERT INTO deck_cards VALUES (?, ?, ?, ?)", [(deck_id, 1, "main", 3), (deck_id, 30, "extra", 1)])
+    assert install.export_decks(con) and not install.export_decks(con)  # inchangé : fichier non réécrit
+    con.execute("DELETE FROM decks")
+    path = install.DECKS_PATH  # carte 999 : absente du catalogue du clone
+    path.write_text(path.read_text(encoding="utf8").replace("30,", "999,"), encoding="utf8")
+    assert install.restore_decks(con) == 1
+    assert [tuple(r) for r in con.execute("SELECT card_id, zone, quantity FROM deck_cards")] == [(1, "main", 3)]
