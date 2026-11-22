@@ -62,10 +62,17 @@ def split_code(code: str | None) -> tuple[str, str] | None:
 
 def same_code(printed: str | None, owned: str) -> bool:
     """Le code noté dans l'Excel désigne-t-il cette impression ? Un préfixe seul (« CRMS ») suffit."""
+    owned = owned.strip().upper()
     full = split_code(owned)
     if full:
         return split_code(printed) == full
-    return (split_code(printed) or ("",))[0] == owned.strip().upper()
+    if "-" in owned:  # numéro inhabituel (« LAVD-FRL26 ») : même code, langue mise à part
+        return _without_language(printed) == _without_language(owned)
+    return str(printed or "").split("-")[0].upper() == owned
+
+
+def _without_language(code: str | None) -> str:
+    return re.sub(r"^([A-Z0-9]+)-[A-Z]{2}", r"\1-", str(code or "").strip().upper())
 
 
 def _digits(number) -> str:
@@ -189,11 +196,30 @@ def build(con, log=print) -> dict:
             for (code, rar), (pid, conf) in zip(prints, found):
                 rows.append((c["id"], set_name, code, rar, exp, pid, conf))
                 stats[conf or "sans prix"] += 1
+    rows += _missing_prints(cards, products, ct_index, set(exp_of.values()), {r[5] for r in rows})
+    stats["exact"] += len(rows) - sum(stats.values())
     con.execute("DELETE FROM printings")
     con.executemany("INSERT INTO printings VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
     con.commit()
     log("Impressions : " + ", ".join(f"{k} {v}" for k, v in sorted(stats.items())))
     return dict(stats)
+
+
+def _missing_prints(cards, products, ct_index, known_exps: set, used: set) -> list[tuple]:
+    """Impressions oubliées par YGOPRODeck (ex. Dark Magician TN23-EN001) : produit Cardmarket d'une extension
+    connue, non attribué, dont CardTrader donne la rareté et le numéro."""
+    by_name = defaultdict(list)
+    for p in products:
+        ct = ct_index.get(p["idProduct"])
+        if p["idExpansion"] in known_exps and p["idProduct"] not in used and ct and ct.get("rarity") \
+                and _digits(ct.get("number")) and ct.get("code"):
+            by_name[norm(p["name"])].append((p, ct))
+    rows = []
+    for c in cards:
+        for p, ct in by_name.get(norm(c["name"]), []):
+            code = f"{ct['code']}-EN{_digits(ct['number']).zfill(3)}"
+            rows.append((c["id"], ct["expansion"], code, ct["rarity"], p["idExpansion"], p["idProduct"], "exact"))
+    return rows
 
 
 def _assign(card_id, prints, cands, ct_index, trend, choices):

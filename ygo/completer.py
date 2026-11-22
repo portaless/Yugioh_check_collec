@@ -25,6 +25,7 @@ from . import rarity as R
 from .db import connect
 
 YELLOW = PatternFill("solid", fgColor="FFF2CC")
+AUTHOR = "Yu-Gi-Oh!"  # auteur des commentaires « À choisir »
 PREFIX = re.compile(r"^[A-Z0-9]{2,5}$")
 KINDS = ("magie", "piège", "monstre", "pendule", "synchro", "xyz", "fusion", "link")
 MIN_IN_SET = 60  # nom approchant suffit si la carte existe dans l'extension notée
@@ -112,6 +113,8 @@ def complete(con, path=None) -> dict:
         col = {h: i + 1 for i, h in enumerate(header) if h}
         for i, values in enumerate(ws.iter_rows(min_row=2, max_col=len(header), values_only=True), 2):
             row = dict(zip(header, values))
+            if "rareté" in col:
+                _clear_choice(ws.cell(i, col["rareté"]))
             if not _todo(row):
                 continue
             prefix = _prefix(row)
@@ -128,6 +131,12 @@ def complete(con, path=None) -> dict:
         importer.add_corrections(finder.learned)
     report["learned"] = finder.learned
     return report
+
+
+def _clear_choice(cell):
+    """Rareté choisie depuis : on enlève le surlignage et le commentaire laissés par le compléteur."""
+    if R.canonical(cell.value) in R.RANK and cell.comment and cell.comment.author == AUTHOR:
+        cell.fill, cell.comment = PatternFill(), None
 
 
 def _fill(ws, i, col, card, inset, prefix, report, where, name, finder_prints):
@@ -166,7 +175,7 @@ def _fill(ws, i, col, card, inset, prefix, report, where, name, finder_prints):
         cell.value = None
         if rarities:
             cell.fill = YELLOW
-            cell.comment = Comment("À choisir : " + " / ".join(R.label(r) for r in rarities), "Yu-Gi-Oh!")
+            cell.comment = Comment("À choisir : " + " / ".join(R.label(r) for r in rarities), AUTHOR)
             report["choose"].append(f"{where} : {card['name_fr'] or card['name_en']} ({code_cell.value}) : "
                                     + " / ".join(R.label(r) for r in rarities))
         else:

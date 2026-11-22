@@ -20,6 +20,8 @@ def test_split_code_ignores_language():
     assert CM.split_code("n'importe quoi") is None
     assert CM.same_code("CRMS-EN042", "crms") and CM.same_code("CRMS-EN042", "CRMS-FR042")
     assert not CM.same_code("CRMS-EN042", "CRMS-FR043") and not CM.same_code("CRMS-EN042", "LC5D")
+    assert CM.same_code("LAVD-ENL26", "LAVD-FRL26") and CM.same_code("LAVD-ENL26", "LAVD")
+    assert not CM.same_code("LAVD-ENL26", "LAVD-FRS27")
 
 
 # ----------------------------------------------------------------- produit Cardmarket d'une impression
@@ -65,3 +67,14 @@ def test_owned_versions_pick_cheapest_set_unless_code_given():
     assert by[("Rare", None)]["print"]["set_name"] == "B" and by[("Rare", None)]["sets"] == 2
     assert by[("Rare", "AAA-FR001")]["print"]["set_name"] == "A"
     assert not by[("Common", None)]["known"]
+
+
+def test_printing_missing_from_catalog_comes_from_cardtrader():
+    cards = [{"id": 1, "name": "Dark Magician"}]
+    products = [{"idProduct": 9, "idExpansion": 5, "name": "Dark Magician"},
+                {"idProduct": 8, "idExpansion": 6, "name": "Dark Magician"}]  # extension inconnue du catalogue
+    ct = {9: {"rarity": "Quarter Century Secret Rare", "number": "001", "code": "TN23", "expansion": "Tin 23"},
+          8: {"rarity": "Ultra Rare", "number": "002", "code": "XX", "expansion": "Promo"}}
+    assert CM._missing_prints(cards, products, ct, {5}, set()) == [
+        (1, "Tin 23", "TN23-EN001", "Quarter Century Secret Rare", 5, 9, "exact")]
+    assert CM._missing_prints(cards, products, ct, {5}, {9}) == []  # déjà attribué
