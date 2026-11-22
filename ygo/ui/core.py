@@ -380,6 +380,11 @@ CARD_SEARCH = st.components.v2.component(
             root.dataset.clear = String(data.clear);
             input.value = "";
         }
+        // après un ajout réussi : curseur dans le champ, prêt pour la carte suivante
+        if (data.focus && root.dataset.focus !== String(data.focus)) {
+            root.dataset.focus = String(data.focus);
+            setTimeout(() => { input.focus(); input.scrollIntoView({ block: "center" }); }, 50);
+        }
         const list = root.querySelector(".list");
         list.innerHTML = "";
         if (!input.value.trim()) return;
@@ -419,8 +424,9 @@ def rank_cards(query: str, limit: int = 8) -> pd.DataFrame:
     return df.loc[order.sort_values(["starts", "owned", "len"]).index[:limit]]
 
 
-def card_search(key: str, placeholder: str = "Tape le nom d'une carte…") -> int | None:
-    """Recherche d'une carte avec suggestions illustrées. Renvoie le code de la carte choisie (une seule fois)."""
+def card_search(key: str, placeholder: str = "Tape le nom d'une carte…", focus: int = 0) -> int | None:
+    """Recherche d'une carte avec suggestions illustrées. Renvoie le code de la carte choisie (une seule fois).
+    Changer `focus` remet le curseur dans le champ."""
     query = (st.session_state.get(key) or {}).get("query", "")
     found = rank_cards(query)
     with ThreadPoolExecutor(8) as pool:  # miniatures téléchargées en parallèle la première fois
@@ -429,7 +435,7 @@ def card_search(key: str, placeholder: str = "Tape le nom d'une carte…") -> in
                 "sub": f"Stock : {int(c['owned'])}" if c["owned"] else c["catégorie"], "owned": bool(c["owned"])}
                for c, img in zip(found.to_dict("records"), imgs)]
     clear = st.session_state.get(f"{key}_clear", 0)
-    res = CARD_SEARCH(data={"placeholder": placeholder, "results": results, "clear": clear}, key=key,
+    res = CARD_SEARCH(data={"placeholder": placeholder, "results": results, "clear": clear, "focus": focus}, key=key,
                       default={"query": ""}, on_query_change=lambda: None, on_pick_change=lambda: None)
     if res.pick:
         st.session_state[f"{key}_clear"] = clear + 1  # vide le champ au prochain affichage

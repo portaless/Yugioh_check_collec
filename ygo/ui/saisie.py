@@ -17,11 +17,13 @@ def euros(v) -> str:
     return "prix inconnu" if v is None else f"{v:.2f} €".replace(".", ",")
 
 
-def _apply(action, message: str, place: str | None = None):
-    """Modifie l'Excel, réimporte la collection et recharge la page avec un message."""
+def _apply(action, message: str | None, place: str | None = None, remember: dict | None = None):
+    """Modifie l'Excel, réimporte la collection et recharge la page avec un message (`remember` : valeurs
+    gardées pour le prochain affichage, seulement si tout s'est bien passé)."""
     try:
-        action()
-        stock.refresh(con)
+        with st.spinner("Enregistrement dans l'Excel et mise à jour de la collection…"):
+            action()
+            stock.refresh(con)
     except PermissionError:
         st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
         return
@@ -30,7 +32,9 @@ def _apply(action, message: str, place: str | None = None):
         return
     if place is not None:
         st.session_state["saisie_place"] = place
-    st.session_state["saisie_done"] = message
+    if message:
+        st.session_state["saisie_done"] = message
+    st.session_state.update(remember or {})
     st.cache_data.clear()
     st.rerun()
 
@@ -81,7 +85,21 @@ def _rangement() -> str | None:
 
 def _add_form(place: str):
     df = catalog()
-    picked = card_search("saisie_search", "Tape le nom de la carte (français ou anglais)…")
+    added = st.session_state.pop("saisie_added", None)
+    if added:
+        # confirmation juste au-dessus du champ, qui reprend le curseur pour la carte suivante
+        st.session_state["saisie_focus"] = st.session_state.get("saisie_focus", 0) + 1
+        card = df[df["id"] == added["id"]]
+        total = int(card["owned"].iloc[0]) if len(card) else added["qty"]
+        st.toast(f"{added['qty']} × {added['name']} ajouté(s)", icon="✅")
+        with st.container(border=True):
+            left, right = st.columns([1, 9], vertical_alignment="center")
+            if len(card):
+                card_img(left, card.iloc[0], "70px")
+            right.success(f"**{added['qty']} × {added['name']}** ajouté(s) à « {added['place']} » — tu en as "
+                          f"maintenant {total} au total. Tape la carte suivante.", icon="✅")
+    picked = card_search("saisie_search", "Tape le nom de la carte (français ou anglais)…",
+                         focus=st.session_state.get("saisie_focus", 0))
     if picked:
         st.session_state["saisie_card"] = picked
     card_id = st.session_state.get("saisie_card")
@@ -106,7 +124,7 @@ def _add_form(place: str):
             name = card["name_fr"] if isinstance(card["name_fr"], str) else card["name_en"]
             st.session_state.pop("saisie_card", None)
             _apply(lambda: stock.add(place, name, qty, p["rarity"] if p else None, p["set_code"] if p else None),
-                   f"{qty} × {name} ajouté(s) à « {place} ».", place)
+                   None, place, {"saisie_added": {"id": card_id, "name": name, "qty": qty, "place": place}})
 
 
 def _contents(place: str):
