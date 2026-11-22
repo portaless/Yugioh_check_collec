@@ -13,11 +13,11 @@ from datetime import date, timedelta
 import pandas as pd
 
 from . import cardmarket as CM
-from .db import ROOT
+from .db import USER_DIR
 
 START = date(2026, 11, 1)
-HISTORY_PATH = ROOT / "historique_prix.csv"
-COLLECTION_PATH = ROOT / "historique_collection.csv"
+HISTORY_PATH = USER_DIR / "historique_prix.csv"
+COLLECTION_PATH = USER_DIR / "historique_collection.csv"
 ESTIMATES = (("avg30", 15), ("avg7", 3), ("avg1", 1))  # moyenne Cardmarket, jours avant la publication
 
 

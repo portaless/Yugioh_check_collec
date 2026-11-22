@@ -24,14 +24,14 @@ import requests
 
 from . import cardtrader
 from . import rarity as R
-from .db import DATA_DIR, ROOT, connect
+from .db import DATA_DIR, USER_DIR, connect
 
 FILES = {
     "products": "https://downloads.s3.cardmarket.com/productCatalog/productList/products_singles_3.json",
     "prices": "https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_3.json",
 }
 CM_DIR = DATA_DIR / "cardmarket"
-CHOICES_PATH = ROOT / "versions_cardmarket.json"
+CHOICES_PATH = USER_DIR / "versions_cardmarket.json"
 SEARCH_URL = "https://www.cardmarket.com/fr/YuGiOh/Products/Search?searchString="
 MIN_JACCARD = 0.5  # en dessous, l'extension Cardmarket n'est pas reconnue (promos isolées) : pas de prix
 

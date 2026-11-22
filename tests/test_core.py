@@ -145,3 +145,11 @@ def test_decks_survive_a_fresh_clone(con, tmp_path, monkeypatch):
     path.write_text(path.read_text(encoding="utf8").replace("30,", "999,"), encoding="utf8")
     assert install.restore_decks(con) == 1
     assert [tuple(r) for r in con.execute("SELECT card_id, zone, quantity FROM deck_cards")] == [(1, "main", 3)]
+
+
+def test_personal_collection_starts_from_a_blank_excel(tmp_path, monkeypatch):
+    from ygo import importer, install
+    monkeypatch.setattr(install, "PERSONAL_DIR", tmp_path / "ma_collection")
+    assert install.create_personal() and not install.create_personal()  # jamais écrasé
+    sheets = importer.read_excel(tmp_path / "ma_collection" / "yugioh.xlsx")
+    assert sheets == {"classeur": [], "deck_mon_deck": []}

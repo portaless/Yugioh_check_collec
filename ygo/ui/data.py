@@ -12,6 +12,7 @@ from ygo import builds
 from ygo import cardmarket as CM
 from ygo import cardtrader
 from ygo import importer
+from ygo import install
 from ygo import rarity as R
 from ygo.fr import BANLIST, tr
 from ygo.importer import CORRECTIONS_PATH, normalize
@@ -161,8 +162,28 @@ def page_import():
         "Relis ton Excel, mets à jour le catalogue et la banlist, et découvre comment tout est calculé.",
         "Données",
     )
-    st.markdown(f"Source : `{importer.EXCEL_PATH.name}`. Chaque feuille est un **emplacement** "
-                "(Arc-v, classeur, boîte A…). Les feuilles `deck_…` sont aussi importées comme decks.")
+    personal = install.USER_DIR == install.PERSONAL_DIR
+    source = importer.EXCEL_PATH.relative_to(importer.ROOT).as_posix()
+    st.markdown(f"Source : `{source}`" + (" (ta collection personnelle)" if personal else " (collection du dépôt)")
+                + ". Chaque feuille est un **emplacement** (Arc-v, classeur, boîte A…). Les feuilles `deck_…` "
+                "sont aussi importées comme decks.")
+    if not personal:
+        with st.expander("Tu as récupéré ce dépôt et tu veux gérer **ta propre collection** ?"):
+            st.markdown(
+                "Ce bouton crée le dossier `ma_collection/` avec un Excel vierge, au même format. Ce dossier n'est "
+                "pas envoyé sur GitHub : tes `git pull` restent sans conflit, et la collection du dépôt reste "
+                "intacte. Ensuite :\n"
+                "1. **relance l'appli** (Ctrl+C dans le terminal, puis `lancer.py`) : elle passe sur ta collection, "
+                "vide pour l'instant ;\n"
+                "2. remplis `ma_collection/yugioh.xlsx` (une feuille par rangement, colonnes expliquées plus bas) ;\n"
+                "3. clique sur « Réimporter l'Excel ».\n\n"
+                "Pour revenir à la collection du dépôt, supprime ou renomme le dossier `ma_collection/` et relance.")
+            if st.button("Créer ma collection"):
+                install.create_personal()
+                st.success("Dossier `ma_collection/` créé. Relance l'appli pour passer sur ta collection.")
+    if not cardtrader.token():
+        st.info("Pas de jeton CardTrader : les raretés exactes viennent de la copie du dépôt. Les extensions sorties "
+                "depuis n'auront qu'un prix déduit (≈). Pour un jeton gratuit, voir l'onglet « Les prix » plus bas.")
     st.warning("Le réimport remplace toute la collection et les decks `deck_…` par le contenu de l'Excel. "
                "Les autres decks sont conservés.")
     c1, c2, c3, c4 = st.columns(4)

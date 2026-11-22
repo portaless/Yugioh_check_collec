@@ -14,11 +14,11 @@ import requests
 from rapidfuzz import fuzz, process
 
 from . import rarity as R
-from .db import DATA_DIR, ROOT, connect, is_extra
+from .db import DATA_DIR, ROOT, USER_DIR, connect, is_extra
 
 API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-EXCEL_PATH = ROOT / "yugioh.xlsx"
-CORRECTIONS_PATH = ROOT / "corrections.json"
+EXCEL_PATH = USER_DIR / "yugioh.xlsx"
+CORRECTIONS_PATH = USER_DIR / "corrections.json"
 TRANSLATIONS_PATH = ROOT / "traductions.json"
 DECK_SHEET_PREFIX = "deck_"
 MIN_SCORE = 95  # en dessous, la carte reste "non reconnue" et se corrige dans l'IHM

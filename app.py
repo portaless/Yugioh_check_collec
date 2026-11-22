@@ -32,6 +32,8 @@ if install.needs_install(con):  # nouveau clone du dépôt : data/ se construit 
         status.update(label="Installation terminée", state="complete")
     st.cache_data.clear()
     st.rerun()
+if install.sync_source(con):  # ma_collection/ vient d'être créé (ou supprimé) : la base suit
+    st.cache_data.clear()
 
 pages = {
     "Ma collection": [

@@ -5,6 +5,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / "yugioh.db"
+# Collection, decks, corrections et historique : dossier ma_collection/ s'il existe (non versionné, pour qui
+# récupère le dépôt et veut sa propre collection), sinon ceux du dépôt.
+PERSONAL_DIR = ROOT / "ma_collection"
+USER_DIR = PERSONAL_DIR if PERSONAL_DIR.is_dir() else ROOT
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cards (
