@@ -123,7 +123,8 @@ def _header(first_row) -> list[str]:
     return [str(h).strip().lower().replace("rarete", "rareté") if h else "" for h in first_row]
 
 
-def read_excel(path: Path = EXCEL_PATH) -> dict[str, list[dict]]:
+def read_excel(path: Path | None = None) -> dict[str, list[dict]]:
+    path = path or EXCEL_PATH  # lu à l'appel : ma_collection/ et les tests changent ce chemin
     wb = openpyxl.load_workbook(path, data_only=True)
     sheets = {}
     for ws in wb.worksheets:
@@ -152,9 +153,10 @@ def merge_rows(rows: list[dict]) -> list[dict]:
     return list(merged.values())
 
 
-def tidy_excel(path: Path = EXCEL_PATH) -> int:
+def tidy_excel(path: Path | None = None) -> int:
     """Regroupe aussi les lignes identiques dans l'Excel : la première garde la somme, les autres sont supprimées.
     Renvoie le nombre de lignes supprimées (0 si l'Excel est ouvert ailleurs et ne peut pas être enregistré)."""
+    path = path or EXCEL_PATH  # lu à l'appel : ma_collection/ et les tests changent ce chemin
     wb = openpyxl.load_workbook(path)
     removed = 0
     for ws in wb.worksheets:
@@ -200,8 +202,9 @@ def load_corrections(con) -> None:
                     [(k, v) for k, v in data.items() if not k.startswith("_")])
 
 
-def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
+def import_excel(con, path: Path | None = None) -> list[dict]:
     """Remplace la collection par le contenu de l'Excel et recrée les decks 'deck_*'."""
+    path = path or EXCEL_PATH
     tidy_excel(path)
     load_corrections(con)
     matcher = Matcher(con)

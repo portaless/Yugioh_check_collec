@@ -16,6 +16,7 @@ from ygo.ui.deck_analysis import page_analysis  # noqa: E402
 from ygo.ui.duel import page_duel  # noqa: E402
 from ygo.ui.generator import page_generator  # noqa: E402
 from ygo.ui.meta_sim import page_meta  # noqa: E402
+from ygo.ui.saisie import page_saisie  # noqa: E402
 from ygo.ui.style import apply_style, page_header  # noqa: E402
 
 apply_style()
@@ -38,6 +39,7 @@ if install.sync_source(con):  # ma_collection/ vient d'être créé (ou supprim�
 pages = {
     "Ma collection": [
         st.Page(page_collection, title="Collection", icon=":material/style:", url_path="collection", default=True),
+        st.Page(page_saisie, title="Saisir ma collection", icon=":material/add_box:", url_path="saisie"),
         st.Page(page_builder, title="Constructeur de deck", icon=":material/construction:", url_path="constructeur"),
         st.Page(page_bourse, title="Bourse", icon=":material/trending_up:", url_path="bourse"),
     ],

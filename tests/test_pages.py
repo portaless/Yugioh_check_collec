@@ -7,7 +7,7 @@ from streamlit.testing.v1 import AppTest
 from ygo.db import DB_PATH
 
 HARNESS = str(Path(__file__).with_name("page_harness.py"))
-PAGES = ["collection", "constructeur", "bourse", "analyse", "duel", "meta", "generateur", "corrections", "import"]
+PAGES = ["collection", "saisie", "constructeur", "bourse", "analyse", "duel", "meta", "generateur", "corrections", "import"]
 
 pytestmark = pytest.mark.skipif(not DB_PATH.exists(), reason="base locale absente : lance d'abord python -m ygo.importer")
 

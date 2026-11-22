@@ -8,11 +8,12 @@ from ygo.ui.deck_analysis import page_analysis
 from ygo.ui.duel import page_duel
 from ygo.ui.generator import page_generator
 from ygo.ui.meta_sim import page_meta
+from ygo.ui.saisie import page_saisie
 from ygo.ui.style import apply_style
 
 PAGES = {"collection": page_collection, "constructeur": page_builder, "analyse": page_analysis, "duel": page_duel,
          "meta": page_meta, "generateur": page_generator, "corrections": page_corrections, "import": page_import,
-         "bourse": page_bourse}
+         "bourse": page_bourse, "saisie": page_saisie}
 
 apply_style()
 PAGES[st.session_state.get("page", "collection")]()

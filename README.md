@@ -40,6 +40,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 | Section | Page | Rôle |
 |---|---|---|
 | Ma collection | Collection | Galerie de tes cartes, fiche agrandie navigable au clavier (← →) avec ton stock par rareté, rangement (feuille de l'Excel), prix et effet de rareté |
+| | Saisir ma collection | Ajouter, modifier ou retirer des cartes avec auto-complétion, sans ouvrir l'Excel |
 | | Constructeur de deck | Composer un deck, légalité et régularité des mains en direct, export `.ydk` |
 | | Bourse | Évolution du prix de tes cartes et de ta collection depuis le 1er novembre 2026, relevé Cardmarket quotidien |
 | Analyse | Analyse | Composition et probabilités d'un deck |
@@ -52,7 +53,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 
 - `app.py` : configuration et navigation uniquement.
 - `ygo/` : le cœur, sans interface — `db.py` (schéma), `importer.py` (Excel + catalogue), `analysis.py` (rôles, légalité,
-  probabilités), `plan.py` (moteur d'un deck et rôle des cartes, lus dans leur texte), `simulation.py` (mains et matchups), `optimizer.py` (générateur), `meta.py` (decks de tournoi),
+  probabilités), `stock.py` (saisie de la collection depuis l'IHM), `plan.py` (moteur d'un deck et rôle des cartes, lus dans leur texte), `simulation.py` (mains et matchups), `optimizer.py` (générateur), `meta.py` (decks de tournoi),
   `fr.py` (traductions), `builds.py` (proposition manuelle `mekk_opti`), `rarity.py` (raretés),
   `cardmarket.py` (prix par impression), `cardtrader.py` (rareté exacte des produits Cardmarket),
   `bourse.py` (historique des prix).
@@ -71,6 +72,8 @@ destruction, et *hors moteur*. C'est une heuristique : elle ne joue pas les comb
 
 ## Données
 
+- La page **Saisir ma collection** écrit elle-même dans l'Excel (nom, nombre, rareté, code), puis le complète et le
+  réimporte : l'Excel reste le stockage, mais il n'est plus nécessaire de l'ouvrir.
 - Une feuille Excel = un emplacement (`Arc-v`, `classeur`, `boite A`…). Les feuilles `deck_…` sont aussi importées comme decks.
 - Colonnes lues : `carte`, `nombre`, `rareté`, `code` (facultatif, ex. `CRMS-FR042`), et en aide à la reconnaissance `magie`/`piège`/`monstre`,
   `fusion`/`synchro`/`xyz`/`link`, `étoile` (détails dans la page Import).
