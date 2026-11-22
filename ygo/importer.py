@@ -250,17 +250,20 @@ def load_translations() -> dict:
 
 
 def fill_missing_french_names(con) -> None:
-    """Cartes récentes sans traduction dans l'API : nom et texte de traductions.json,
-    sinon nom écrit dans l'Excel."""
+    """Cartes récentes sans traduction dans l'API : nom officiel relevé sur Yugipedia (noms_fr.py), sinon nom
+    de traductions.json, sinon nom écrit dans l'Excel ; texte de traductions.json."""
+    from . import noms_fr
     rows = con.execute("""SELECT c.id, MIN(col.excel_name) AS excel_name FROM cards c
                           JOIN collection col ON col.card_id = c.id
                           WHERE c.name_fr IS NULL GROUP BY c.id""").fetchall()
     con.executemany("UPDATE cards SET name_fr = ? WHERE id = ?",
                     [(r["excel_name"][:1].upper() + r["excel_name"][1:], r["id"]) for r in rows])
     tr = load_translations()
-    # les noms traduits remplacent ceux de l'Excel, mais jamais un nom officiel (desc_fr présent = carte traduite par Konami)
+    official = noms_fr.load()
+    # ces noms remplacent ceux de l'Excel, mais jamais un nom de l'API (desc_fr présent = carte traduite par Konami)
+    names = {int(i): name for i, name in tr["noms"].items()} | official
     con.executemany("UPDATE cards SET name_fr = ? WHERE id = ? AND desc_fr IS NULL",
-                    [(name, int(i)) for i, name in tr["noms"].items()])
+                    [(name, i) for i, name in names.items()])
     con.executemany("UPDATE cards SET desc_fr = ? WHERE id = ? AND desc_fr IS NULL",
                     [(text, int(i)) for i, text in tr["textes"].items()])
 

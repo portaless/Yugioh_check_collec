@@ -41,6 +41,21 @@ def test_matcher_tolerates_typos_and_uses_french_names(con):
     assert m.match("raigeki", "spell", None)[0] == 10
 
 
+def test_official_french_names_fill_cards_without_translation(con, tmp_path, monkeypatch):
+    import json
+    from ygo import importer, noms_fr
+    path = tmp_path / "noms.json"
+    path.write_text(json.dumps({"noms": {"2": "Lune Rouge Mekk-Chevalier", "3": "Nom à ne pas appliquer"},
+                                "absents": []}), encoding="utf8")
+    monkeypatch.setattr(noms_fr, "PATH", path)
+    monkeypatch.setattr(importer, "TRANSLATIONS_PATH", tmp_path / "absent.json")
+    con.execute("UPDATE cards SET desc_fr = 'texte officiel' WHERE id = 3")  # carte déjà traduite par l'API
+    importer.fill_missing_french_names(con)
+    names = dict(con.execute("SELECT id, name_fr FROM cards WHERE id IN (2, 3)").fetchall())
+    assert names[2] == "Lune Rouge Mekk-Chevalier"
+    assert names[3] != "Nom à ne pas appliquer"
+
+
 def test_matcher_prefers_manual_override(con):
     con.execute("INSERT INTO name_overrides VALUES ('nom bizarre', 6)")
     assert Matcher(con).match("nom bizarre", None, None) == (6, 100.0)

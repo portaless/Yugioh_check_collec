@@ -86,6 +86,7 @@ destruction, et *hors moteur*. C'est une heuristique : elle ne joue pas les comb
   version possédée, valeur de la collection). Ils ne se régénèrent pas : à garder et à commiter.
 - `data/cardtrader_token.txt` (facultatif, non versionné) : jeton API CardTrader, pour la rareté exacte des produits.
 - `traductions.json` : noms et textes français (non officiels) des cartes que l'API n'a pas encore en français.
+- `noms_fr_officiels.json` : noms français officiels des cartes que YGOPRODeck ne traduit pas, relevés sur Yugipedia (CC BY-SA) par `python -m ygo.noms_fr` ; complété à chaque « Mettre à jour le catalogue ».
 - `ma_collection/` (facultatif, non versionné) : s'il existe, remplace les fichiers personnels ci-dessous
   (Excel, corrections, versions, historique, decks).
 - `decks.json` : copie des decks de l'IHM, mise à jour automatiquement ; un clone du dépôt les retrouve.

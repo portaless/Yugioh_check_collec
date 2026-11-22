@@ -4,6 +4,7 @@ import json
 
 from rapidfuzz import fuzz, process
 import pandas as pd
+import requests
 import streamlit as st
 
 from ygo import analysis as A
@@ -14,6 +15,7 @@ from ygo import cardtrader
 from ygo import completer
 from ygo import importer
 from ygo import install
+from ygo import noms_fr
 from ygo import rarity as R
 from ygo.fr import BANLIST, tr
 from ygo.importer import CORRECTIONS_PATH, normalize
@@ -211,6 +213,12 @@ def page_import():
         with st.spinner("Téléchargement du catalogue YGOPRODeck…"):
             importer.download_catalog(force=True)
             n = importer.load_catalog(con)
+        with st.spinner("Noms français des nouvelles cartes (Yugipedia)…"):
+            try:
+                noms_fr.download(con, log=lambda _: None)
+            except (requests.RequestException, RuntimeError) as e:
+                st.warning(f"Noms français non mis à jour : {e}")
+        with st.spinner("Réimport de ta collection…"):
             importer.import_excel(con)
             if (CM.CM_DIR / "products.json").exists():
                 CM.build(con, log=lambda _: None)
