@@ -1,5 +1,7 @@
 """Page Simulation face au méta."""
 
+from html import escape
+
 import pandas as pd
 import streamlit as st
 
@@ -19,6 +21,51 @@ def cached_matchups(deck_id: int, signature: tuple, opp_lists: tuple) -> list[di
     deck = S.main_deck(A.deck_cards(con, deck_id))
     res = S.matchups(deck, [meta.resolve(con, list(ids)) for ids in opp_lists], deck_plan(deck_id))
     return [{**vars(m), "index": m.index} for m in res]
+
+
+# Matrice des builds : tableau HTML ; un clic droit sur le nom d'un deck le renvoie à Python
+MATRIX = st.components.v2.component(
+    "meta_matrix",
+    css="""
+    .wrap { overflow-x: auto; border: 1px solid #2A3050; border-radius: .7rem; }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; color: #E9E6DD; }
+    th { background: #1E2340; font-weight: 600; text-align: right; padding: .5rem .7rem; white-space: nowrap; }
+    th:first-child { text-align: left; }
+    td { text-align: right; padding: .45rem .7rem; font-weight: 600; border-top: 1px solid #2A3050; }
+    td.deck { text-align: left; font-weight: 500; color: #E9E6DD; background: #171B30; cursor: context-menu;
+              white-space: nowrap; }
+    td.deck:hover { color: #E3B341; text-decoration: underline dotted; }
+    td.deck.on { color: #E3B341; box-shadow: inset 3px 0 0 #E3B341; }
+    """,
+    js="""
+    export default function(component) {
+        const { data, setTriggerValue, parentElement } = component;
+        let root = parentElement.querySelector(".wrap");
+        if (!root) { root = document.createElement("div"); root.className = "wrap"; parentElement.appendChild(root); }
+        root.innerHTML = data;
+        root.querySelectorAll("td.deck").forEach((cell) => {
+            cell.oncontextmenu = (e) => {
+                e.preventDefault();
+                root.querySelectorAll("td.deck.on").forEach((c) => c.classList.remove("on"));
+                cell.classList.add("on");
+                setTriggerValue("deck", cell.dataset.deck);
+            };
+        });
+    }
+    """,
+)
+
+
+def matrix_html(ranked: list[str], matrix: dict, weighted: dict, arch) -> str:
+    def cell(v: float) -> str:
+        bg, fg = TONES[tone_for(v)]
+        return f"<td style='background:{bg}; color:{fg}'>{100 * v:.0f}</td>"
+    head = "".join(f"<th>{escape(a)}</th>" for a, _ in arch)
+    rows = "".join(
+        f"<tr><td class='deck' data-deck='{escape(d, quote=True)}' title='Clic droit : afficher le deck'>{escape(d)}</td>"
+        + cell(weighted[d]) + "".join(cell(matrix[d][a]["index"]) for a, _ in arch) + "</tr>"
+        for d in ranked)
+    return f"<table><tr><th>Build</th><th>Méta pondéré</th>{head}</tr>{rows}</table>"
 
 
 def show_deck(name: str, deck_id: int, score: float | None):
@@ -126,17 +173,12 @@ combos ni les tiens.
     cols = st.columns(len(ranked))
     for col, d in zip(cols, ranked):
         status_tile(col, d, f"{100 * weighted[d]:.0f}", tone_for(weighted[d]), "indice face au méta (pondéré par la part)")
-        if col.button("Voir le deck", key=f"meta_view_{d}", width="stretch"):
-            st.session_state["meta_view"] = d
-    table = pd.DataFrame({d: {a: matrix[d][a]["index"] for a, _ in arch} for d in ranked}).T
-    table.insert(0, "Méta pondéré", pd.Series(weighted))
-    styled = table.loc[ranked].style.format(lambda v: f"{100 * v:.0f}").map(
-        lambda v: f"background-color: {TONES[tone_for(v)][0]}; color: {TONES[tone_for(v)][1]}; font-weight: 600")
-    event = st.dataframe(styled, width="stretch", on_select="rerun", selection_mode="single-row", key="meta_table")
-    if event.selection.rows:
-        st.session_state["meta_view"] = ranked[event.selection.rows[0]]
+    clicked = MATRIX(data=matrix_html(ranked, matrix, weighted, arch), key="meta_matrix",
+                     on_deck_change=lambda: None)
+    if clicked.deck:
+        st.session_state["meta_view"] = clicked.deck
     st.caption("Lecture : 100 = ton plan passe à chaque fois ; 50 = une fois sur deux. Vert ≥ 55, ambre ≥ 35. "
-               "Clique sur une ligne (ou « Voir le deck ») pour afficher le deck.")
+               "Clic droit sur le nom d'un deck pour l'afficher.")
     if st.session_state.get("meta_view") in decks:
         show_deck(st.session_state["meta_view"], decks[st.session_state["meta_view"]], weighted.get(
             st.session_state["meta_view"]))
