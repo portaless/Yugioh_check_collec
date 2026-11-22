@@ -61,8 +61,9 @@ def page_generator():
    Tous les essais sont jugés sur **les mêmes mains tirées**, pour que la comparaison soit équitable.
 5. **Vérification** : le deck trouvé est réévalué sur 20 000 **nouvelles** mains, pour s'assurer que le gain
    n'est pas un coup de chance des tirages de la recherche.
-6. **Extra Deck**, par règles : Liens Mekk-Chevalier d'abord, puis les Extra génériques invocables avec tes
-   monstres (les Synchro seulement si Girsu, ton Syntoniseur, est dans le deck).
+6. **Extra Deck**, par règles et dans la taille choisie (0 à 15) : tes cartes forcées d'abord, puis les Liens
+   Mekk-Chevalier, puis les Extra génériques invocables avec tes monstres (les Synchro seulement si Girsu, ton
+   Syntoniseur, est dans le deck). Les cartes exclues ne sont jamais prises.
 
 **Limites** : l'algorithme optimise la *régularité des mains*. Il ne joue pas les combos et ne connaît pas la
 valeur fine de chaque carte au-delà de son rôle (starter, interruption, protection, destruction).
@@ -71,6 +72,8 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     df = catalog()
     owned_main = df[(df["owned"] > 0) & ~df["frame_type"].map(is_extra)]
     labels = dict(zip(owned_main["id"].astype(int), owned_main["nom"]))
+    owned_extra = df[(df["owned"] > 0) & df["frame_type"].map(is_extra)]
+    extra_labels = dict(zip(owned_extra["id"].astype(int), owned_extra["nom"]))
     opponents = meta_opponents()
 
     st.subheader("Objectifs")
@@ -82,13 +85,21 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
     w_off = w4.slider("Pénalité hors moteur", 0.0, 1.0, 0.3, 0.05,
                       help="Pénalise les cartes qui ne servent pas le plan Mekk-Chevalier.")
 
-    st.subheader("Contraintes")
+    st.subheader("Contraintes du Main Deck")
     c1, c2, c3 = st.columns([1, 2, 2])
-    size = c1.slider("Taille du Main Deck", 40, 45, 40)
+    size = c1.slider("Taille du Main Deck", 40, 60, 40,
+                     help="Le règlement autorise 40 à 60 cartes. Plus le deck est gros, moins tu pioches tes meilleures cartes.")
     locked = c2.multiselect("Cartes forcées (au moins 1 exemplaire)", list(labels), format_func=labels.get,
                             placeholder="Choisir…")
     excluded = c3.multiselect("Cartes exclues", [i for i in labels if i not in locked], format_func=labels.get,
                               placeholder="Choisir…")
+    st.subheader("Contraintes de l'Extra Deck")
+    e1, e2, e3 = st.columns([1, 2, 2])
+    extra_size = e1.slider("Taille de l'Extra Deck", 0, 15, 15, help="15 cartes au plus.")
+    extra_locked = e2.multiselect("Extra forcées", list(extra_labels), format_func=extra_labels.get,
+                                  placeholder="Choisir…", help="Prises en priorité, même hors du plan Mekk-Chevalier.")
+    extra_excluded = e3.multiselect("Extra exclues", [i for i in extra_labels if i not in extra_locked],
+                                    format_func=extra_labels.get, placeholder="Choisir…")
     with st.expander("Réglages avancés"):
         a1, a2, a3 = st.columns(3)
         iterations = a1.slider("Itérations", 500, 10_000, 3000, 500, help="Plus d'itérations = recherche plus longue mais plus fine.")
@@ -97,7 +108,9 @@ valeur fine de chaque carte au-delà de son rôle (starter, interruption, protec
 
     if st.button("Lancer l'algorithme", type="primary"):
         opts = O.Options(size=size, w_first=w_first, w_second=w_second, w_meta=w_meta, w_offplan=w_off,
-                         locked={i: 1 for i in locked}, excluded=set(excluded), iterations=iterations,
+                         locked={i: 1 for i in locked}, excluded=set(excluded), extra_size=extra_size,
+                         extra_locked={i: 1 for i in extra_locked}, extra_excluded=set(extra_excluded),
+                         iterations=iterations,
                          hands=hands, seed=int(seed))
         bar = st.progress(0.0, text="Recherche en cours…")
         try:

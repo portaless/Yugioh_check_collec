@@ -385,7 +385,7 @@ possibles de ton stock, le Main Deck qui maximise tes objectifs.
 **1. Les contraintes, non négociables**
 - Uniquement des cartes de **ton stock** : chaque carte est plafonnée à min(stock, banlist, 3) exemplaires.
 - La **banlist TCG** (voir l'onglet précédent).
-- La taille du Main Deck que tu choisis (40 à 45), plus les cartes que tu **forces** ou **exclues**.
+- La taille du Main Deck que tu choisis (40 à 60), plus les cartes que tu **forces** ou **exclues**.
 
 **2. Le score d'un deck**
 Chaque deck candidat est jugé par simulation de mains de départ, avec le même modèle que les pages Duel et Méta :

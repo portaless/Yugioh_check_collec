@@ -36,6 +36,9 @@ class Options:
     w_offplan: float = 0.3
     locked: dict = field(default_factory=dict)   # id -> nombre minimal d'exemplaires
     excluded: set = field(default_factory=set)
+    extra_size: int = 15                                  # Extra Deck : 0 à 15 cartes
+    extra_locked: dict = field(default_factory=dict)      # id -> nombre minimal d'exemplaires
+    extra_excluded: set = field(default_factory=set)
     iterations: int = 3000
     hands: int = 4000
     seed: int = 0
@@ -151,21 +154,26 @@ def optimize(con, opts: Options, opponents: list[tuple[list[dict], float]] = (),
             if progress:
                 progress(it / opts.iterations)
     main = {cards[i]["id"]: int(q) for i, q in enumerate(best) if q}
-    return Result(main, build_extra(con, main), best_score, best_parts, history)
+    return Result(main, build_extra(con, main, opts), best_score, best_parts, history)
 
 
-def build_extra(con, main: dict) -> dict:
-    """Extra Deck par règles : Liens Mekk-Chevalier d'abord, puis Extra génériques invocables avec des
-    Mekk (cf. analysis.GENERIC_EXTRA), dans la limite du stock et de la banlist, 15 cartes au plus."""
+def build_extra(con, main: dict, opts: Options | None = None) -> dict:
+    """Extra Deck par règles : cartes forcées d'abord, puis Liens Mekk-Chevalier, puis Extra génériques
+    invocables avec des Mekk (cf. analysis.GENERIC_EXTRA), dans la limite du stock, de la banlist et de la
+    taille choisie (15 au plus). Les cartes exclues ne sont jamais prises."""
+    opts = opts or Options()
+    size = max(0, min(opts.extra_size, 15))
     rows = [dict(r) for r in con.execute("SELECT c.*, o.owned FROM owned o JOIN cards c ON c.id = o.card_id")]
     has_girsu = any(con.execute("SELECT 1 FROM cards WHERE id = ? AND name_en LIKE 'Girsu%'", (i,)).fetchone()
                     for i in main)
     ranked = []
     for c in rows:
-        if not is_extra(c["frame_type"]):
+        if not is_extra(c["frame_type"]) or c["id"] in opts.extra_excluded:
             continue
         limit = min(c["owned"], A.BAN_LIMIT.get(c["ban_tcg"], 3), 3)
-        if c["archetype"] == "Mekk-Knight":
+        if c["id"] in opts.extra_locked:
+            prio = -1
+        elif c["archetype"] == "Mekk-Knight":
             prio = 0
         elif c["name_en"] in A.GENERIC_EXTRA:
             # les Synchro génériques demandent un Syntoniseur : Girsu dans le Main Deck
@@ -177,8 +185,9 @@ def build_extra(con, main: dict) -> dict:
         ranked.append((prio, c["name_en"], c["id"], limit))
     extra, total = {}, 0
     for prio, _, cid, limit in sorted(ranked):
-        # 2 exemplaires au plus pour les génériques : la place va d'abord à la variété
-        take = min(limit, 15 - total, 3 if prio == 0 else 2)
+        # forcées : le nombre demandé ; génériques : 2 au plus, la place va d'abord à la variété
+        wanted = opts.extra_locked.get(cid, 1) if prio == -1 else 3 if prio == 0 else 2
+        take = min(limit, size - total, wanted)
         if take > 0:
             extra[cid] = take
             total += take

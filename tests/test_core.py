@@ -153,3 +153,21 @@ def test_personal_collection_starts_from_a_blank_excel(tmp_path, monkeypatch):
     assert install.create_personal() and not install.create_personal()  # jamais écrasé
     sheets = importer.read_excel(tmp_path / "ma_collection" / "yugioh.xlsx")
     assert sheets == {"classeur": [], "deck_mon_deck": []}
+
+
+def test_optimizer_builds_bigger_main_decks(con):
+    r = O.optimize(con, O.Options(size=50, iterations=200, hands=1000))
+    assert sum(r.main.values()) == 50 and not [i for i in A.check(_as_cards(con, r)) if i[0] == "error"]
+
+
+def _as_cards(con, r):
+    rows = {c["id"]: dict(c) for c in con.execute("SELECT c.*, o.owned FROM cards c JOIN owned o ON o.card_id = c.id")}
+    return ([{**rows[i], "zone": "main", "quantity": q} for i, q in r.main.items()]
+            + [{**rows[i], "zone": "extra", "quantity": q} for i, q in r.extra.items()])
+
+
+def test_extra_deck_respects_size_forced_and_excluded_cards(con):
+    main = {1: 3, 4: 1}
+    assert O.build_extra(con, main) == {30: 2, 31: 1, 32: 2}  # Lien Mekk, puis génériques (Synchro : Girsu)
+    opts = O.Options(extra_size=2, extra_locked={33: 1}, extra_excluded={31})
+    assert O.build_extra(con, main, opts) == {33: 1, 30: 1}  # Utopie forcée, puis la place restante
