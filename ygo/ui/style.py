@@ -39,7 +39,7 @@ div[class*="st-key-tile_"]:hover img { transform: translateY(-4px);
 .page-hero p { margin: .5rem 0 0; color: #A8A49A; font-size: 1.02rem; max-width: 60rem; }
 
 /* ---------- titres de section */
-h2 { border-left: 3px solid #E3B341; padding-left: .7rem !important; margin-top: 1.4rem !important; }
+[data-testid="stMain"] h2 { border-left: 3px solid #E3B341; padding-left: .7rem !important; margin-top: 1.4rem !important; }
 
 /* ---------- métriques natives en cartes */
 [data-testid="stMetric"] { background: #171B30; border: 1px solid #2A3050; border-radius: .7rem; padding: .7rem 1rem; }

@@ -13,14 +13,16 @@ from ygo.ui.core import (
     catalog,
     con,
     deck_counts,
+    deck_kpis,
     deck_selector,
+    deck_signature,
     effect_text,
     gallery,
     open_card,
     search,
     show_issues,
 )
-from ygo.ui.style import page_header
+from ygo.ui.style import page_header, status_tile
 
 
 def page_collection():
@@ -70,6 +72,21 @@ def page_collection():
         st.caption("Clique sur une ligne pour ouvrir la fiche.")
         if event.selection.rows:
             open_card([int(i) for i in view["id"]], event.selection.rows[0])
+
+
+def kpi_strip(deck_id: int):
+    """Régularité du deck en direct : recalculée à chaque modification enregistrée."""
+    k = deck_kpis(deck_id, deck_signature(deck_id))
+    if k is None:
+        return
+    cols = st.columns(4)
+    tiles = [("Mains fortes en premier", k.strong_first, .80, .60), ("Mains fortes en second", k.strong_second, .80, .60),
+             ("Main jouable en premier", k.playable_first, .90, .75), ("Main bloquée en premier", 1 - k.brick_first, .93, .85)]
+    for col, (label, v, good, ok) in zip(cols, tiles):
+        shown = v if "bloquée" not in label else 1 - v
+        status_tile(col, label, f"{100 * shown:.0f} %", "good" if v >= good else "warn" if v >= ok else "bad",
+                    "sur 20 000 mains simulées")
+    st.caption("Détail et comparaison avec un autre deck : page Duel de decks.")
 
 
 def page_builder():
@@ -133,6 +150,7 @@ def page_builder():
         n = deck_counts(cards)
         st.subheader(f"{deck['name']} — Main {n['main']} · Extra {n['extra']} · Side {n['side']}")
         show_issues(cards)
+        kpi_strip(deck_id)
         if deck["notes"]:
             with st.expander("Notes / justification du build"):
                 st.markdown(deck["notes"])

@@ -9,7 +9,7 @@ from ygo import analysis as A
 from ygo import builds
 from ygo import simulation as S
 from ygo.fr import ZONES
-from ygo.ui.core import cards_gallery, con, deck_counts, deck_signature, verdict_pill
+from ygo.ui.core import cards_gallery, con, deck_counts, deck_kpis, deck_signature, verdict_pill
 from ygo.ui.style import TONES, page_header, status_tile
 
 
@@ -82,8 +82,7 @@ def composition_counts(deck: list[dict]) -> dict:
 @st.cache_data(show_spinner="Simulation des mains…")
 def deck_stats(deck_id: int, signature: tuple) -> tuple:
     """KPI et leviers d'un deck, recalculés seulement quand son contenu change (signature)."""
-    deck = S.main_deck(A.deck_cards(con, deck_id))
-    return S.simulate(deck), S.levers(deck)
+    return deck_kpis(deck_id, signature), S.levers(S.main_deck(A.deck_cards(con, deck_id)))
 
 
 def page_duel():

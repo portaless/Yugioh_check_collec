@@ -10,6 +10,7 @@ import streamlit.components.v1 as components
 
 from ygo import analysis as A
 from ygo import importer
+from ygo import simulation as S
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, tr
 from ygo.images import image_src
@@ -215,3 +216,10 @@ def tone_for(v: float) -> str:
 def deck_signature(deck_id: int) -> tuple:
     return tuple(tuple(r) for r in con.execute(
         "SELECT card_id, zone, quantity FROM deck_cards WHERE deck_id = ? ORDER BY 1, 2", (deck_id,)))
+
+
+@st.cache_data(show_spinner=False)
+def deck_kpis(deck_id: int, signature: tuple):
+    """Régularité des mains d'un deck (20 000 mains), recalculée seulement quand son contenu change."""
+    deck = S.main_deck(A.deck_cards(con, deck_id))
+    return S.simulate(deck) if deck else None
