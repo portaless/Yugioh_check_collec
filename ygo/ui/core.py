@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from rapidfuzz import fuzz, process
 
 from ygo import analysis as A
 from ygo import cardmarket as CM
@@ -417,11 +418,44 @@ def rank_cards(query: str, limit: int = 8) -> pd.DataFrame:
     if not q:
         return catalog().head(0)
     df = search_any(catalog(), [q])
-    if df.empty:
-        return df
     starts = df["search"].str.startswith(q) | df["nom"].map(normalize).str.startswith(q)
     order = pd.DataFrame({"starts": ~starts, "owned": df["owned"] == 0, "len": df["nom"].str.len()}, index=df.index)
-    return df.loc[order.sort_values(["starts", "owned", "len"]).index[:limit]]
+    exact = df.loc[order.sort_values(["starts", "owned", "len"]).index[:limit]]
+    if len(exact) >= limit:
+        return exact
+    near = _near(q).drop(exact.index, errors="ignore")
+    return pd.concat([exact, near.head(limit - len(exact))])
+
+
+def _near(q: str) -> pd.DataFrame:
+    """Faute de frappe tolérée : chaque mot tapé doit ressembler à un mot du nom (« griffayeur » trouve
+    « Griffrayeur »). Les plus ressemblantes d'abord."""
+    df = catalog()
+    vocab = _vocabulary(tuple(df["search"]))
+    similar = []
+    for word in q.split():
+        found = {w: s for w, s, _ in process.extract(word, vocab, scorer=fuzz.ratio, score_cutoff=80, limit=None)}
+        similar.append(found)
+    if not similar:
+        return df.head(0)
+    scores = df["search"].map(lambda text: _near_score(text.split(), similar))
+    hits = scores[scores > 0]
+    return df.loc[hits.sort_values(ascending=False).index]
+
+
+def _near_score(words: list[str], similar: list[dict]) -> float:
+    total = 0.0
+    for found in similar:
+        best = max((found.get(w, 0) for w in words), default=0)
+        if not best:
+            return 0.0
+        total += best
+    return total / len(similar)
+
+
+@st.cache_data(max_entries=1, show_spinner=False)
+def _vocabulary(texts: tuple[str, ...]) -> list[str]:
+    return sorted({w for t in texts for w in t.split()})
 
 
 def card_search(key: str, placeholder: str = "Tape le nom d'une carte…", focus: int = 0) -> int | None:
