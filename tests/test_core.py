@@ -3,13 +3,21 @@ import pytest
 from ygo import analysis as A
 from ygo import optimizer as O
 from ygo import simulation as S
-from ygo.importer import Matcher, normalize
+from ygo.importer import Matcher, merge_rows, normalize
 
 
 # ----------------------------------------------------------------- import / reconnaissance
 
 def test_normalize_ignores_case_accents_and_punctuation():
     assert normalize("Cœur de l'Héritage — du Monde !") == "coeur de l heritage du monde"
+
+
+def test_identical_rows_are_merged_with_summed_quantity():
+    rows = [{"carte": "Raigeki", "nombre": 1, "rareté": "Commune", "code": "LOB"},
+            {"carte": "raigeki ", "nombre": 2, "rareté": "commune", "code": "LOB"},
+            {"carte": "Raigeki", "nombre": None, "rareté": "Super Rare", "code": "LOB"}]
+    merged = merge_rows(rows)
+    assert [(r["rareté"], r["nombre"]) for r in merged] == [("Commune", 3), ("Super Rare", None)]
 
 
 def test_matcher_tolerates_typos_and_uses_french_names(con):

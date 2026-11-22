@@ -131,6 +131,18 @@ def read_excel(path: Path = EXCEL_PATH) -> dict[str, list[dict]]:
     return sheets
 
 
+def merge_rows(rows: list[dict]) -> list[dict]:
+    """Lignes identiques (même nom, mêmes infos hors quantité) : une seule, quantités additionnées."""
+    merged = {}
+    for row in rows:
+        key = tuple(normalize(str(v)) if v is not None else "" for k, v in sorted(row.items()) if k != "nombre")
+        if key in merged:
+            merged[key]["nombre"] = int(merged[key].get("nombre") or 1) + int(row.get("nombre") or 1)
+        else:
+            merged[key] = dict(row)
+    return list(merged.values())
+
+
 def load_corrections(con) -> None:
     if not CORRECTIONS_PATH.exists():
         return
@@ -147,7 +159,7 @@ def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
     con.execute("DELETE FROM collection")
     for sheet, rows in read_excel(path).items():
         qty_by_card = defaultdict(int)
-        for row in rows:
+        for row in merge_rows(rows):
             name = str(row["carte"]).strip()
             qty = int(row.get("nombre") or 1)
             level = row.get("étoile")
