@@ -6,7 +6,7 @@ import streamlit as st
 from ygo import analysis as A
 from ygo import meta
 from ygo import simulation as S
-from ygo.ui.core import cards_gallery, con, deck_plan, deck_signature, tone_for
+from ygo.ui.core import cards_gallery, con, deck_plan, deck_signature, plan_name, tone_for
 from ygo.ui.style import TONES, page_header, pill, status_tile
 
 
@@ -19,6 +19,23 @@ def cached_matchups(deck_id: int, signature: tuple, opp_lists: tuple) -> list[di
     deck = S.main_deck(A.deck_cards(con, deck_id))
     res = S.matchups(deck, [meta.resolve(con, list(ids)) for ids in opp_lists], deck_plan(deck_id))
     return [{**vars(m), "index": m.index} for m in res]
+
+
+def show_deck(name: str, deck_id: int, score: float | None):
+    """Le deck en images (Main puis Extra), sous la matrice ; un clic sur une carte ouvre sa fiche."""
+    cards = A.deck_cards(con, deck_id)
+    with st.container(border=True):
+        h, close = st.columns([6, 1])
+        h.subheader(name + (f" — indice {100 * score:.0f}" if score is not None else ""))
+        if close.button("Fermer", key="meta_view_close", width="stretch"):
+            st.session_state.pop("meta_view", None)
+            st.rerun()
+        st.caption(f"Moteur : {plan_name(deck_plan(deck_id))}")
+        for zone, label, per_row in (("main", "Main Deck", 10), ("extra", "Extra Deck", 10)):
+            items = [(c["id"], f"×{c['quantity']}") for c in cards if c["zone"] == zone]
+            if items:
+                st.markdown(f"**{label}** ({sum(c['quantity'] for c in cards if c['zone'] == zone)} cartes)")
+                cards_gallery(items, f"meta_deck_{deck_id}_{zone}", per_row=per_row)
 
 
 def deck_vs_meta(deck_id: int, arch: list[tuple[str, list[dict]]]) -> dict[str, dict]:
@@ -105,15 +122,24 @@ combos ni les tiens.
     if not matrix:
         st.info("Les builds choisis ont un Main Deck vide.")
         return
-    cols = st.columns(len(matrix))
-    for col, d in zip(cols, sorted(matrix, key=lambda d: -weighted[d])):
+    ranked = sorted(matrix, key=lambda d: -weighted[d])  # du plus performant au moins performant
+    cols = st.columns(len(ranked))
+    for col, d in zip(cols, ranked):
         status_tile(col, d, f"{100 * weighted[d]:.0f}", tone_for(weighted[d]), "indice face au méta (pondéré par la part)")
-    table = pd.DataFrame({d: {a: matrix[d][a]["index"] for a, _ in arch} for d in matrix}).T
+        if col.button("Voir le deck", key=f"meta_view_{d}", width="stretch"):
+            st.session_state["meta_view"] = d
+    table = pd.DataFrame({d: {a: matrix[d][a]["index"] for a, _ in arch} for d in ranked}).T
     table.insert(0, "Méta pondéré", pd.Series(weighted))
-    styled = table.style.format(lambda v: f"{100 * v:.0f}").map(
+    styled = table.loc[ranked].style.format(lambda v: f"{100 * v:.0f}").map(
         lambda v: f"background-color: {TONES[tone_for(v)][0]}; color: {TONES[tone_for(v)][1]}; font-weight: 600")
-    st.dataframe(styled, width="stretch")
-    st.caption("Lecture : 100 = ton plan passe à chaque fois ; 50 = une fois sur deux. Vert ≥ 55, ambre ≥ 35.")
+    event = st.dataframe(styled, width="stretch", on_select="rerun", selection_mode="single-row", key="meta_table")
+    if event.selection.rows:
+        st.session_state["meta_view"] = ranked[event.selection.rows[0]]
+    st.caption("Lecture : 100 = ton plan passe à chaque fois ; 50 = une fois sur deux. Vert ≥ 55, ambre ≥ 35. "
+               "Clique sur une ligne (ou « Voir le deck ») pour afficher le deck.")
+    if st.session_state.get("meta_view") in decks:
+        show_deck(st.session_state["meta_view"], decks[st.session_state["meta_view"]], weighted.get(
+            st.session_state["meta_view"]))
 
     # 3. Détail
     st.header("3. Détail d'un matchup")
