@@ -15,6 +15,16 @@ python -m venv .venv                              # une seule fois : crée l'env
 Au premier lancement, l'appli s'installe toute seule (quelques minutes, connexion internet requise) : catalogue des
 cartes, collection de l'Excel, decks, méta et prix. Même chose en ligne de commande : `python -m ygo.install`.
 
+### Gérer ta propre collection
+
+Le dépôt contient la collection de son auteur, pour la démonstration. Pour suivre la tienne : page **Import** →
+« Créer ma collection » (ou `python -m ygo.install --ma-collection`). Cela crée `ma_collection/` avec un Excel vierge ;
+relance l'appli, remplis `ma_collection/yugioh.xlsx`, puis « Réimporter l'Excel ». Ce dossier n'est pas versionné :
+tes `git pull` ne touchent pas à ta collection. Supprime-le pour revenir à celle du dépôt.
+
+Le jeton CardTrader est facultatif : sans lui, les raretés exactes viennent de `cardtrader_index.json.gz` ; seules les
+extensions sorties depuis auront un prix déduit (≈). Pour le tien, voir **Import → Les prix**.
+
 Pour tout mettre à jour ensuite, la page **Import**, ou :
 
 ```bash
@@ -63,6 +73,8 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
   version possédée, valeur de la collection). Ils ne se régénèrent pas : à garder et à commiter.
 - `data/cardtrader_token.txt` (facultatif, non versionné) : jeton API CardTrader, pour la rareté exacte des produits.
 - `traductions.json` : noms et textes français (non officiels) des cartes que l'API n'a pas encore en français.
+- `ma_collection/` (facultatif, non versionné) : s'il existe, remplace les fichiers personnels ci-dessous
+  (Excel, corrections, versions, historique, decks).
 - `decks.json` : copie des decks de l'IHM, mise à jour automatiquement ; un clone du dépôt les retrouve.
 - `cardtrader_index.json.gz` : rareté exacte de chaque produit Cardmarket (copie de l'index CardTrader), pour que
   les clones en profitent sans jeton.
