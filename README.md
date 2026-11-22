@@ -5,6 +5,7 @@ Base SQLite de ma collection (source : `yugioh.xlsx`) enrichie avec le catalogue
 ## Démarrage
 
 ```bash
+python -m venv .venv                              # une seule fois : crée l'environnement Python
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe -m ygo.importer          # construit data/yugioh.db (--refresh pour retélécharger le catalogue)
 .venv\Scripts\python.exe -m ygo.meta              # télécharge les decks de tournoi récents
