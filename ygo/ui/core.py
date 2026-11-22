@@ -9,7 +9,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from ygo import analysis as A
+from ygo import cardmarket as CM
 from ygo import importer
+from ygo import rarity as R
 from ygo import simulation as S
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, ZONES, tr
@@ -49,7 +51,7 @@ def catalog() -> pd.DataFrame:
     stock = con.execute("""SELECT card_id, SUM(quantity), GROUP_CONCAT(DISTINCT rarity) FROM collection
                            WHERE card_id IS NOT NULL GROUP BY card_id""").fetchall()
     owned = {r[0]: r[1] for r in stock}
-    rarities = {r[0]: (r[2] or "").replace(",", ", ") for r in stock}
+    rarities = {r[0]: ", ".join(R.label(x) for x in (r[2] or "").split(",") if x) for r in stock}
     return cards.assign(owned=cards["id"].map(owned).fillna(0).astype(int),
                         rarities=cards["id"].map(rarities).fillna(""))
 
@@ -102,9 +104,6 @@ def card_facts(c) -> dict:
     facts["Archétype"] = c["archétype"]
     facts["Banlist TCG"] = c["banlist"] or "Illimitée"
     facts["En stock"] = int(c["owned"])
-    facts["Rareté"] = c.get("rarities", "")
-    if pd.notna(c["price_cm"]):
-        facts["Cardmarket"] = f"≈ {c['price_cm']:.2f} €"
     return {k: str(v) for k, v in facts.items() if v not in ("", None)}
 
 
@@ -127,6 +126,38 @@ def text_note(c) -> str:
 VIEWER_HTML = (Path(__file__).parent.parent / "viewer.html").read_text(encoding="utf8")
 
 
+CONF_MARK = {"deduit": "≈", "doute": "?"}
+
+
+def card_versions(card_id: int, name_en: str) -> dict:
+    """Section « Mon stock » de la fiche : une entrée par rareté possédée, puis les autres impressions."""
+    prints = CM.card_printings(con, card_id)
+    stock, used = [], set()
+    for v in CM.owned_versions(con, card_id, prints):
+        p = v["print"]
+        if p:
+            used.add((p["set_name"], p["rarity"]))
+        if not v["known"]:
+            hint = "Rareté inconnue pour cette carte : à corriger dans l'Excel" if v["rarity"] else "Rareté non précisée"
+        elif not v["code"] and v["sets"] > 1:
+            hint = f"{v['sets']} extensions possibles, prix de la moins chère (précise le code dans l'Excel)"
+        else:
+            hint = ""
+        stock.append({"rarity": R.label(v["rarity"]) or "Rareté ?", "fx": R.effect(v["rarity"]), "qty": v["qty"],
+                      "code": v["code"] or (p["set_code"] if p else ""), "set": p["set_name"] if p else "",
+                      "price": p["trend"] if p else None, "mark": CONF_MARK.get(p["confidence"], "") if p else "",
+                      "hint": hint})
+    others, seen = [], set(used)
+    for p in sorted(prints, key=lambda p: (R.rank(p["rarity"]), p["trend"] if p["trend"] is not None else 1e9)):
+        if (p["set_name"], p["rarity"]) in seen:
+            continue
+        seen.add((p["set_name"], p["rarity"]))
+        others.append({"rarity": R.label(p["rarity"]), "fx": R.effect(p["rarity"]), "set": p["set_name"],
+                       "code": p["set_code"], "price": p["trend"], "mark": CONF_MARK.get(p["confidence"], "")})
+    value = sum(s["qty"] * s["price"] for s in stock if s["price"] is not None)
+    return {"stock": stock, "others": others, "value": value, "cm": CM.search_url(name_en)}
+
+
 VIEWER_WINDOW = 300  # cartes envoyées au navigateur autour de celle ouverte
 
 
@@ -137,7 +168,8 @@ def card_dialog(ids: list[int], pos: int):
     window = ids[start:start + VIEWER_WINDOW]
     df = catalog().set_index("id").loc[window].reset_index()
     cards = [{"src": image_src(int(c["id"]), c["image_url"]), "name": c["nom"],
-              "facts": list(card_facts(c).items()), "effect": effect_text(c), "note": text_note(c)}
+              "facts": list(card_facts(c).items()), "effect": effect_text(c), "note": text_note(c),
+              "versions": card_versions(int(c["id"]), c["name_en"])}
              for c in df.to_dict("records")]
     # "</" échappé pour qu'un texte de carte ne puisse pas fermer la balise <script>
     payload = json.dumps(cards, ensure_ascii=False).replace("</", "<\\/")

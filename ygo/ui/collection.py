@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from ygo import analysis as A
+from ygo import cardmarket as CM
 from ygo import importer
 from ygo.db import is_extra
 from ygo.fr import BANLIST, ZONES, ZONES_REV, tr
@@ -58,7 +59,9 @@ def page_collection():
     m1, m2, m3 = st.columns(3)
     m1.metric("Cartes différentes", len(view))
     m2.metric("Exemplaires", int(view["owned"].sum()))
-    m3.metric("Valeur Cardmarket ≈", f"{(view['owned'] * view['price_cm'].fillna(0)).sum():.2f} €")
+    values = CM.collection_value(con)
+    m3.metric("Valeur Cardmarket", f"{sum(values.get(int(i), 0) for i in view['id']):.2f} €",
+              help="Prix tendance Cardmarket de tes raretés (prix le plus bas de la carte si la rareté est inconnue).")
 
     tab_gallery, tab_list = st.tabs(["Galerie", "Tableau"])
     with tab_gallery:

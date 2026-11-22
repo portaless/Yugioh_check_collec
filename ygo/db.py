@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS collection (
     location     TEXT NOT NULL,
     quantity     INTEGER NOT NULL DEFAULT 1,
     match_score  REAL,
-    rarity       TEXT                            -- colonne « rareté » de l'Excel, libre
+    rarity       TEXT,                           -- colonne « rareté » de l'Excel, libre
+    set_code     TEXT                            -- colonne « code » de l'Excel (ex. CRMS-FR042), facultative
 );
 
 -- Corrections manuelles de reconnaissance, conservées entre deux imports
@@ -68,6 +69,31 @@ CREATE TABLE IF NOT EXISTS deck_cards (
     PRIMARY KEY (deck_id, card_id, zone)
 );
 
+-- Produits Cardmarket (fichiers publics) avec leur prix ; rareté et numéro venus de CardTrader si disponibles
+CREATE TABLE IF NOT EXISTS cm_products (
+    id         INTEGER PRIMARY KEY,   -- idProduct Cardmarket
+    expansion  INTEGER,
+    name       TEXT,                  -- nom anglais normalisé
+    trend      REAL,
+    low        REAL,
+    avg30      REAL,
+    ct_rarity  TEXT,
+    ct_number  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_cm_products_name ON cm_products(expansion, name);
+
+-- Impressions de chaque carte (YGOPRODeck) et produit Cardmarket associé, voir ygo/cardmarket.py
+CREATE TABLE IF NOT EXISTS printings (
+    card_id     INTEGER NOT NULL,
+    set_name    TEXT NOT NULL,
+    set_code    TEXT,
+    rarity      TEXT,
+    expansion   INTEGER,              -- extension Cardmarket
+    cm_product  INTEGER,
+    confidence  TEXT                  -- manuel / exact / deduit / doute / NULL (pas de prix)
+);
+CREATE INDEX IF NOT EXISTS idx_printings_card ON printings(card_id);
+
 -- Stock total par carte, toutes localisations confondues
 CREATE VIEW IF NOT EXISTS owned AS
     SELECT card_id, SUM(quantity) AS owned
@@ -83,9 +109,11 @@ def connect(path: Path = DB_PATH) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(SCHEMA)
-    # bases créées avant l'ajout de la rareté
-    if "rarity" not in {r["name"] for r in con.execute("PRAGMA table_info(collection)")}:
-        con.execute("ALTER TABLE collection ADD COLUMN rarity TEXT")
+    # bases créées avant l'ajout de la rareté et du code d'impression
+    columns = {r["name"] for r in con.execute("PRAGMA table_info(collection)")}
+    for column in ("rarity", "set_code"):
+        if column not in columns:
+            con.execute(f"ALTER TABLE collection ADD COLUMN {column} TEXT")
     return con
 
 

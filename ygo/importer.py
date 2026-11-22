@@ -13,6 +13,7 @@ import openpyxl
 import requests
 from rapidfuzz import fuzz, process
 
+from . import rarity as R
 from .db import DATA_DIR, ROOT, connect, is_extra
 
 API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
@@ -153,9 +154,10 @@ def import_excel(con, path: Path = EXCEL_PATH) -> list[dict]:
             card_id, score = matcher.match(name, _category(row), level)
             if score < MIN_SCORE:
                 card_id = None
-            rarity = str(row.get("rareté") or "").strip() or None
-            con.execute("INSERT INTO collection (card_id, excel_name, location, quantity, match_score, rarity)"
-                        " VALUES (?, ?, ?, ?, ?, ?)", (card_id, name, sheet, qty, score, rarity))
+            rarity = R.canonical(row.get("rareté"))
+            code = str(row.get("code") or "").strip().upper() or None
+            con.execute("INSERT INTO collection (card_id, excel_name, location, quantity, match_score, rarity, set_code)"
+                        " VALUES (?, ?, ?, ?, ?, ?, ?)", (card_id, name, sheet, qty, score, rarity, code))
             report.append({"sheet": sheet, "excel": name, "card_id": card_id, "score": score})
             if card_id:
                 qty_by_card[card_id] += qty

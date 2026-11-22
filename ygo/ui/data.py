@@ -8,7 +8,10 @@ import streamlit as st
 
 from ygo import analysis as A
 from ygo import builds
+from ygo import cardmarket as CM
+from ygo import cardtrader
 from ygo import importer
+from ygo import rarity as R
 from ygo.fr import BANLIST, tr
 from ygo.importer import CORRECTIONS_PATH, normalize
 from ygo.ui.core import card_img, catalog, con, refresh, search
@@ -18,9 +21,18 @@ from ygo.ui.style import page_header
 def page_corrections():
     page_header(
         "Corrections",
-        "Associe à la bonne carte les noms de l'Excel non reconnus ou reconnus de façon approximative.",
+        "Associe à la bonne carte les noms de l'Excel mal reconnus, et à la bonne version Cardmarket "
+        "les raretés dont le prix est incertain.",
         "Données",
     )
+    tab_names, tab_versions = st.tabs(["Noms de l'Excel", "Versions Cardmarket"])
+    with tab_names:
+        name_corrections()
+    with tab_versions:
+        version_corrections()
+
+
+def name_corrections():
     st.caption("Une correction est enregistrée dans corrections.json et reste valable aux prochains imports.")
     overrides = {r[0] for r in con.execute("SELECT excel_name FROM name_overrides")}
     rows = [dict(r) for r in con.execute("""SELECT col.excel_name, GROUP_CONCAT(DISTINCT col.location) AS location,
@@ -83,6 +95,55 @@ def correction_form(excel_name: str, status: str | None):
             refresh()
 
 
+def version_corrections():
+    """Impressions possédées dont le produit Cardmarket est déduit (≈) ou douteux (?) : choix manuel."""
+    st.caption("Cardmarket ne dit pas, dans ses fichiers, quelle rareté correspond à quel produit quand une carte a "
+               "plusieurs raretés dans la même extension. Ouvre la carte sur Cardmarket, repère le prix de ta rareté, "
+               "puis choisis le produit qui a ce prix. Ton choix est enregistré dans versions_cardmarket.json.")
+    owned = {}
+    for r in con.execute("SELECT card_id, rarity FROM collection WHERE card_id IS NOT NULL"):
+        owned.setdefault(r["card_id"], set()).add(r["rarity"])
+    rows = [dict(r) for r in con.execute("""
+        SELECT p.card_id, p.set_name, p.set_code, p.rarity, p.cm_product, p.confidence, m.trend,
+               COALESCE(c.name_fr, c.name_en) AS nom, c.name_en
+        FROM printings p JOIN cards c ON c.id = p.card_id LEFT JOIN cm_products m ON m.id = p.cm_product
+        WHERE p.confidence IN ('deduit', 'doute') ORDER BY p.confidence DESC, nom""")]
+    rows = [r for r in rows if r["card_id"] in owned and (r["rarity"] in owned[r["card_id"]] or None in owned[r["card_id"]])]
+    if not rows:
+        st.success("Aucune version incertaine parmi les raretés que tu possèdes.")
+        return
+    only_doubt = st.toggle("Seulement les « ? »", value=True)
+    if only_doubt:
+        rows = [r for r in rows if r["confidence"] == "doute"]
+    st.caption(f"{len(rows)} impression(s) à vérifier.")
+    for r in rows[:60]:
+        cands = CM.candidates(con, r["card_id"], r["set_name"])
+        mark = "?" if r["confidence"] == "doute" else "≈"
+        with st.container(border=True):
+            st.markdown(f"**{r['nom']}** — {r['set_name']} ({r['set_code']}), **{R.label(r['rarity'])}** {mark}  ·  "
+                        f"[Voir sur Cardmarket ↗]({CM.search_url(r['name_en'])})")
+            if not cands:
+                st.caption("Aucun produit Cardmarket trouvé pour cette extension.")
+                continue
+            labels = {c["id"]: f"Produit n°{i + 1} : tendance {euros(c['trend'])}, plus bas {euros(c['low'])}"
+                      + (f" (CardTrader : {R.label(c['ct_rarity'])})" if c["ct_rarity"] else "")
+                      for i, c in enumerate(cands)}
+            ids = list(labels)
+            key = f"{r['card_id']}_{r['set_code']}_{r['rarity']}"
+            a, b = st.columns([4, 1])
+            pick = a.selectbox("Produit de ta rareté", ids, format_func=labels.get, key=f"ver_s_{key}",
+                               index=ids.index(r["cm_product"]) if r["cm_product"] in ids else 0)
+            if b.button("Valider", key=f"ver_b_{key}"):
+                CM.save_choice(con, r["card_id"], r["set_code"], r["rarity"], pick)
+                refresh()
+    if len(rows) > 60:
+        st.caption(f"… et {len(rows) - 60} autres : valide celles-ci pour faire apparaître la suite.")
+
+
+def euros(v) -> str:
+    return "?" if v is None else f"{v:.2f} €".replace(".", ",")
+
+
 def save_correction(excel_name: str, card_id: int):
     con.execute("INSERT OR REPLACE INTO name_overrides VALUES (?, ?)", (excel_name, card_id))
     con.execute("UPDATE collection SET card_id = ?, match_score = 100 WHERE excel_name = ?", (card_id, excel_name))
@@ -103,7 +164,7 @@ def page_import():
                 "(Arc-v, classeur, boîte A…). Les feuilles `deck_…` sont aussi importées comme decks.")
     st.warning("Le réimport remplace toute la collection et les decks `deck_…` par le contenu de l'Excel. "
                "Les autres decks sont conservés.")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     if c1.button("Réimporter l'Excel", type="primary"):
         st.session_state["import_report"] = importer.import_excel(con)
     if c2.button("Mettre à jour le catalogue (banlist, nouvelles cartes)"):
@@ -111,8 +172,17 @@ def page_import():
             importer.download_catalog(force=True)
             n = importer.load_catalog(con)
             importer.import_excel(con)
+            if (CM.CM_DIR / "products.json").exists():
+                CM.build(con, log=lambda _: None)
         st.success(f"{n} cartes dans le catalogue.")
-    if c3.button("Recréer la proposition de build"):
+    if c3.button("Mettre à jour les prix Cardmarket"):
+        with st.spinner("Téléchargement des prix Cardmarket…"):
+            if cardtrader.token():
+                cardtrader.download(log=lambda _: None)
+            CM.download(force=True)
+            stats = CM.build(con, log=lambda _: None)
+        st.success("Prix à jour : " + ", ".join(f"{v} {k}" for k, v in sorted(stats.items())) + " (toutes cartes).")
+    if c4.button("Recréer la proposition de build"):
         builds.create(con)
         st.success(f"Deck « {builds.NAME} » recréé.")
     report = st.session_state.get("import_report")
@@ -125,9 +195,12 @@ def page_import():
             st.dataframe(pd.DataFrame(missing), hide_index=True)
 
     st.divider()
-    tab_excel, tab_ban, tab_build = st.tabs(["Format de l'Excel", "La banlist", "Comment est calculé un build"])
+    tab_excel, tab_prices, tab_ban, tab_build = st.tabs(
+        ["Format de l'Excel", "Les prix", "La banlist", "Comment est calculé un build"])
     with tab_excel:
         explain_excel()
+    with tab_prices:
+        explain_prices()
     with tab_ban:
         explain_banlist()
     with tab_build:
@@ -155,20 +228,24 @@ informations (type, effet, banlist…) viennent du catalogue officiel, inutile d
         {"Colonne": "fusion / synchro / xyz / link", "Utilisée": "Aide", "Rôle": "Un « x » indique un monstre "
                                                                                "d'Extra Deck (même usage)."},
         {"Colonne": "étoile", "Utilisée": "Aide", "Rôle": "Niveau, Rang ou valeur Lien : départage les homonymes."},
-        {"Colonne": "rareté", "Utilisée": "Oui", "Rôle": "Rareté de ton exemplaire (Commune, Rare, Super Rare, "
-                                                         "Ultra Rare, Secret Rare, Starlight…), texte libre. Pour une "
-                                                         "même carte en deux raretés, fais deux lignes."},
+        {"Colonne": "rareté", "Utilisée": "Oui", "Rôle": "Rareté de ton exemplaire, en français, en anglais ou en "
+                                                         "abrégé (Commune, Rare, SR, Ultra Rare, ScR, Starlight…). "
+                                                         "Pour une même carte en deux raretés, fais deux lignes."},
+        {"Colonne": "code", "Utilisée": "Facultative", "Rôle": "Code imprimé sous l'illustration (ex. CRMS-FR042) : "
+                                                               "désigne l'extension exacte, donc le prix exact. Sans "
+                                                               "code, le prix est celui de la rareté la moins chère."},
         {"Colonne": "pendule, ban, limitation, effet, contexte, type", "Utilisée": "Non",
          "Rôle": "Ignorées : remplies automatiquement depuis le catalogue."},
     ]), hide_index=True, width="stretch")
     st.markdown("""
 #### Exemple
-| carte | magie | piège | monstre | synchro | étoile | nombre | rareté |
-|---|---|---|---|---|---|---|---|
-| Ciel Bleu Mekk-Chevalier | | | x | | 5 | 3 | Commune |
-| Infini Éphémère | | x | | | | 2 | Secret Rare |
-| Infini Éphémère | | x | | | | 1 | Starlight |
-| Artilleur Hyper Psychique | | | x | x | 9 | 2 | Super Rare |
+| carte | magie | piège | monstre | synchro | étoile | nombre | rareté | code |
+|---|---|---|---|---|---|---|---|---|
+| Ciel Bleu Mekk-Chevalier | | | x | | 5 | 3 | Commune | |
+| Infini Éphémère | | x | | | | 2 | Secret Rare | |
+| Infini Éphémère | | x | | | | 1 | Starlight | |
+| Artilleur Hyper Psychique | | | x | x | 9 | 1 | Ultra Rare | CRMS-FR042 |
+| Artilleur Hyper Psychique | | | x | x | 9 | 1 | Rare | LC5D-FR235 |
 
 #### Reconnaissance des noms
 Chaque nom est comparé aux 14 000+ cartes du catalogue (noms français et anglais). Au-dessus de 95/100 de
@@ -182,6 +259,50 @@ lignes d'une feuille voit ses quantités additionnées.
         st.markdown("#### Ton fichier actuel")
         st.dataframe(pd.DataFrame([{"Feuille": r["location"], "Lignes": r["lignes"], "Exemplaires": r["cartes"],
                                     "Non reconnues": r["non_reconnues"]} for r in sheets]), hide_index=True)
+
+
+def explain_prices():
+    st.markdown(f"""
+#### D'où viennent les prix ?
+Du **guide des prix Cardmarket**, publié chaque jour en accès libre. Le prix affiché est le **prix tendance**
+d'une impression précise (extension + rareté), toutes langues confondues. Le bouton « Mettre à jour les prix
+Cardmarket » ci-dessus le retélécharge.
+
+#### Le problème de la rareté
+Les fichiers de Cardmarket donnent, pour chaque produit, le nom de la carte et un numéro d'extension, mais **pas
+la rareté**. Quand une carte existe en une seule rareté dans une extension, pas de doute. Quand elle en a
+plusieurs (ex. Ultra Rare et Ultimate Rare dans Crimson Crisis), il faut savoir quel produit est lequel :
+
+| Marque | Signification |
+|---|---|
+| *(rien)* | Exact : une seule possibilité, rareté donnée par CardTrader ou choisie par toi |
+| ≈ | Déduit : produits attribués de la rareté la plus commune à la plus rare, et les prix confirment cet ordre (fiable à ~90 %) |
+| ? | Douteux : les prix contredisent l'ordre, ou le nombre de produits ne correspond pas. À vérifier dans **Corrections** |
+
+#### CardTrader, pour lever les doutes
+CardTrader (autre site de vente européen) indique pour chacune de ses impressions la rareté **et** l'identifiant
+Cardmarket correspondant. Avec son jeton, chaque produit Cardmarket retrouve sa rareté exacte.
+1. Crée un compte gratuit sur cardtrader.com.
+2. Dans les **paramètres de ton profil**, copie ton **jeton API** (« API token »).
+3. Colle-le seul dans le fichier `{cardtrader.TOKEN_PATH.relative_to(importer.ROOT)}` (non envoyé sur GitHub).
+4. Clique sur « Mettre à jour les prix Cardmarket ». La première fois, la lecture de CardTrader prend quelques minutes.
+
+Statut : **{"jeton trouvé" if cardtrader.token() else "pas de jeton"}**, {len(cardtrader.load_index())} produits
+Cardmarket dont la rareté est connue par CardTrader.
+
+#### Ce qui n'est pas fait
+Le site Cardmarket affiche bien la rareté, mais il n'est **pas lu automatiquement** : c'est interdit par ses
+conditions d'utilisation, et ton compte pourrait être suspendu. Son API officielle est réservée aux vendeurs
+professionnels.
+""")
+    rows = con.execute("""SELECT COALESCE(confidence, 'sans prix') AS c, COUNT(*) AS n FROM printings
+                          WHERE card_id IN (SELECT card_id FROM collection) GROUP BY 1""").fetchall()
+    if rows:
+        names = {"manuel": "Choisies à la main", "exact": "Exactes", "deduit": "Déduites (≈)", "doute": "Douteuses (?)",
+                 "sans prix": "Sans prix (extension non trouvée)"}
+        st.markdown("#### Impressions de tes cartes")
+        st.dataframe(pd.DataFrame([{"Statut": names.get(r["c"], r["c"]), "Impressions": r["n"]} for r in rows]),
+                     hide_index=True)
 
 
 def explain_banlist():

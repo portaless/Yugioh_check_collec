@@ -30,6 +30,78 @@
   button:disabled { opacity: .35; cursor: default; }
   .pos { color: var(--muted); font-size: .95rem; text-align: center; }
   .pos kbd { font-family: inherit; font-size: .8rem; padding: 1px 6px; border-radius: 4px; background: var(--btn); }
+  /* ---------- mon stock et autres versions */
+  h3 { font-family: Cinzel, Georgia, serif; color: var(--gold); font-size: 1.05rem; margin: 1.1rem 0 .6rem; letter-spacing: .04em; }
+  h3 .value { font-family: Inter, system-ui, sans-serif; color: var(--fg); font-weight: 600; font-size: .95rem; float: right; }
+  .stock { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: .4rem; }
+  .version { width: 112px; font-size: .82rem; line-height: 1.35; }
+  .version .foil { width: 112px; cursor: zoom-in; }
+  .version b { display: block; margin-top: .35rem; }
+  .muted { color: var(--muted); }
+  .price { color: #F3D27A; font-weight: 600; }
+  .hint { color: #E3A93A; font-size: .78rem; }
+  .empty { color: var(--muted); font-size: .92rem; margin: 0 0 .4rem; }
+  details { margin: .9rem 0 0; }
+  summary { cursor: pointer; color: var(--muted); font-size: .92rem; }
+  summary:hover { color: var(--gold); }
+  table.others { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: .5rem; opacity: .75; }
+  table.others td { padding: .28rem .4rem; border-bottom: 1px solid var(--border); }
+  table.others tr { cursor: zoom-in; }
+  table.others tr:hover { color: var(--gold); }
+  table.others td:last-child { text-align: right; white-space: nowrap; }
+  a.cm { color: var(--gold); font-size: .88rem; }
+  .legend { color: var(--muted); font-size: .78rem; margin-top: .3rem; }
+
+  /* ---------- effets de rareté : un reflet animé qui imite le rendu de chaque rareté */
+  .foil { position: relative; display: block; border-radius: 5px; overflow: hidden; line-height: 0;
+          box-shadow: 0 0 0 1px var(--border), 0 6px 16px rgba(0,0,0,.45); --mx: 50%; --my: 50%; }
+  .foil img { width: 100%; display: block; }
+  .foil::before, .foil::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-size: 250% 250%;
+          animation: sheen 5s linear infinite; }
+  @keyframes sheen { from { background-position: 0% 50%; } to { background-position: 250% 50%; } }
+  /* Rare : nom argenté */
+  .fx-rare::before, .fx-secret::before { clip-path: inset(4% 22% 89% 7%); mix-blend-mode: screen; opacity: .9;
+          background-image: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%); }
+  /* Super / Ultra : illustration holographique */
+  .fx-super::after, .fx-ultra::after { clip-path: inset(18% 12% 27% 12%); mix-blend-mode: color-dodge; opacity: .45;
+          background-image: repeating-linear-gradient(115deg, #ff6b9d 0, #ffd36b 6%, #7dffb0 12%, #6bd5ff 18%, #b18cff 24%, #ff6b9d 30%); }
+  /* Ultra : nom doré */
+  .fx-ultra::before { clip-path: inset(4% 22% 89% 7%); mix-blend-mode: color; opacity: .95;
+          background-image: linear-gradient(110deg, #b8860b, #ffe680, #d4a017, #fff3b0, #b8860b); }
+  /* Gold : toute la carte dorée */
+  .fx-gold img { filter: sepia(.35) saturate(1.3); }
+  .fx-gold::after { mix-blend-mode: overlay; opacity: .8;
+          background-image: linear-gradient(110deg, #8a6d1d, #ffe680 30%, #c9a227 50%, #fff3b0 70%, #8a6d1d); }
+  /* Secret : arc-en-ciel fin en diagonale (et nom argenté, ci-dessus) */
+  .fx-secret::after { clip-path: inset(18% 12% 27% 12%); mix-blend-mode: color-dodge; opacity: .55;
+          background-image: repeating-linear-gradient(135deg, #ff6b9d 0 2px, #ffd36b 2px 4px, #7dffb0 4px 6px, #6bd5ff 6px 8px, #b18cff 8px 10px); }
+  /* Ultimate : relief doré sur toute la carte */
+  .fx-ultimate img { filter: sepia(.4) contrast(1.15) brightness(.95); }
+  .fx-ultimate::after { mix-blend-mode: soft-light; opacity: .9;
+          background-image: linear-gradient(120deg, rgba(0,0,0,.35), rgba(255,236,170,.9) 45%, rgba(0,0,0,.25) 55%, rgba(255,236,170,.7)); }
+  /* Ghost : illustration pâle et fantomatique */
+  .fx-ghost img { filter: grayscale(.75) brightness(1.2) contrast(.85); }
+  .fx-ghost::after { mix-blend-mode: screen; opacity: .45;
+          background-image: linear-gradient(115deg, transparent 20%, #d6f3ff 40%, transparent 55%, #f2e6ff 75%, transparent); }
+  /* Starlight / Collector's / Quarter Century : toute la carte scintille */
+  .fx-starlight::before { mix-blend-mode: color-dodge; opacity: .4;
+          background-image: linear-gradient(115deg, #ff6b9d, #ffd36b, #7dffb0, #6bd5ff, #b18cff, #ff6b9d); }
+  .fx-starlight::after { mix-blend-mode: screen; background-size: 9px 9px; animation: twinkle 1.6s ease-in-out infinite alternate;
+          background-image: radial-gradient(circle, rgba(255,255,255,.95) 0 1px, transparent 1.5px); }
+  @keyframes twinkle { from { opacity: .25; } to { opacity: .75; } }
+
+  /* ---------- carte agrandie avec son effet, inclinable à la souris */
+  .zoom { position: fixed; inset: 0; background: rgba(6,8,18,.9); display: flex; align-items: center; justify-content: center;
+          gap: 28px; z-index: 10; perspective: 1100px; }
+  .zoom[hidden] { display: none; }
+  .zoom .foil { height: 88vh; aspect-ratio: 421 / 614; transition: transform .08s linear; cursor: zoom-out;
+          box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,.7); }
+  .zoom .foil img { height: 100%; }
+  .zoom .foil::before, .zoom .foil::after { animation: none; background-position: var(--mx) var(--my); }
+  .zoom .fx-starlight::after { animation: twinkle 1.6s ease-in-out infinite alternate; }
+  .zoom .caption { max-width: 260px; font-size: 1rem; line-height: 1.6; }
+  .zoom .caption b { font-family: Cinzel, Georgia, serif; color: var(--gold); font-size: 1.3rem; display: block; margin-bottom: .4rem; }
+
   @media (max-width: 640px) {
     .viewer { grid-template-columns: 1fr; overflow-y: auto; }
     .art img { max-height: 55vh; }
@@ -43,9 +115,23 @@
   <div class="info">
     <h2 id="name"></h2>
     <dl id="facts"></dl>
+    <h3>Mon stock <span class="value" id="value"></span></h3>
+    <div class="stock" id="stock"></div>
+    <p class="empty" id="nostock" hidden>Pas dans ta collection.</p>
     <p class="note" id="note" hidden></p>
     <div class="effect" id="effect"></div>
+    <details id="others-box">
+      <summary id="others-title"></summary>
+      <table class="others"><tbody id="others"></tbody></table>
+    </details>
+    <p><a class="cm" id="cm" target="_blank" rel="noopener">Voir sur Cardmarket ↗</a></p>
+    <p class="legend">Prix tendance Cardmarket. ≈ : rareté déduite de l'ordre des produits ; ? : à vérifier dans la page Corrections.
+      Clique sur une version pour voir l'effet de sa rareté.</p>
   </div>
+</div>
+<div class="zoom" id="zoom" hidden>
+  <div class="foil" id="zoom-card"><img id="zoom-img" alt=""></div>
+  <div class="caption" id="zoom-caption"></div>
 </div>
 <div class="nav">
   <button id="prev">◀ Précédente</button>
@@ -83,16 +169,89 @@ function show(i) {
   $("note").hidden = !c.note;
   $("note").textContent = c.note;
   $("effect").textContent = c.effect;
+  showVersions(c);
+  closeZoom();
   $("pos").textContent = `${pos + 1} / ${CARDS.length}`;
   $("prev").disabled = pos === 0;
   $("next").disabled = pos === CARDS.length - 1;
   for (const d of [1, 2, -1, -2]) preload(pos + d);
 }
 
+function euros(v, mark) {
+  return v === null || v === undefined ? "pas de prix" : (mark ? mark + " " : "") + v.toFixed(2).replace(".", ",") + " €";
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function foil(src, fx, alt) {
+  const f = el("div", "foil fx-" + fx);
+  const img = el("img");
+  img.src = src; img.alt = alt; img.loading = "lazy";
+  f.append(img);
+  return f;
+}
+
+function showVersions(c) {
+  const v = c.versions;
+  const stock = $("stock");
+  stock.replaceChildren();
+  for (const s of v.stock) {
+    const box = el("div", "version");
+    const f = foil(c.src, s.fx, s.rarity);
+    f.onclick = () => openZoom(c.src, s.fx, [s.rarity + " ×" + s.qty, s.set, s.code, euros(s.price, s.mark)]);
+    box.append(f, el("b", "", s.rarity + " ×" + s.qty));
+    if (s.code) box.append(el("div", "muted", s.code));
+    box.append(el("div", "price", euros(s.price, s.mark)));
+    if (s.hint) box.append(el("div", "hint", s.hint));
+    stock.append(box);
+  }
+  $("nostock").hidden = v.stock.length > 0;
+  $("value").textContent = v.stock.some(s => s.price !== null) ? "valeur " + euros(v.value, "") : "";
+  const others = $("others");
+  others.replaceChildren();
+  for (const o of v.others) {
+    const tr = el("tr");
+    tr.append(el("td", "", o.rarity), el("td", "", o.set), el("td", "muted", o.code), el("td", "price", euros(o.price, o.mark)));
+    tr.onclick = () => openZoom(c.src, o.fx, [o.rarity, o.set, o.code, euros(o.price, o.mark)]);
+    others.append(tr);
+  }
+  $("others-box").hidden = v.others.length === 0;
+  $("others-title").textContent = `Autres versions (${v.others.length})`;
+  $("cm").href = v.cm;
+}
+
+function openZoom(src, fx, lines) {
+  $("zoom-card").className = "foil fx-" + fx;
+  $("zoom-card").style.transform = "";
+  $("zoom-img").src = src;
+  const cap = $("zoom-caption");
+  cap.replaceChildren(el("b", "", lines[0]));
+  for (const l of lines.slice(1)) if (l) cap.append(el("div", "", l));
+  $("zoom").hidden = false;
+}
+
+function closeZoom() { $("zoom").hidden = true; }
+
+$("zoom").onclick = closeZoom;
+$("zoom").onmousemove = e => {
+  const card = $("zoom-card");
+  const r = card.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  card.style.setProperty("--mx", `${x * 250}%`);
+  card.style.setProperty("--my", `${y * 250}%`);
+  card.style.transform = `rotateY(${(x - .5) * 18}deg) rotateX(${(.5 - y) * 18}deg)`;
+};
+
 $("prev").onclick = () => show(pos - 1);
 $("next").onclick = () => show(pos + 1);
 
 function onKey(e) {
+  if (e.key === "Escape" && !$("zoom").hidden) { closeZoom(); e.preventDefault(); e.stopPropagation(); return; }
   if (e.key === "ArrowLeft") { show(pos - 1); e.preventDefault(); }
   if (e.key === "ArrowRight") { show(pos + 1); e.preventDefault(); }
 }
