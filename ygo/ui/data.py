@@ -125,7 +125,7 @@ def version_corrections():
         cands = CM.candidates(con, r["card_id"], r["set_name"])
         mark = "?" if r["confidence"] == "doute" else "≈"
         with st.container(border=True):
-            st.markdown(f"**{r['nom']}** — {r['set_name']} ({r['set_code']}), **{R.label(r['rarity'])}** {mark}  ·  "
+            st.markdown(f"**{r['nom']}** — {r['set_name']} ({CM.french_code(r['set_code'])}), **{R.label(r['rarity'])}** {mark}  ·  "
                         f"[Voir sur Cardmarket ↗]({CM.search_url(r['name_en'])})")
             if not cands:
                 st.caption("Aucun produit Cardmarket trouvé pour cette extension.")

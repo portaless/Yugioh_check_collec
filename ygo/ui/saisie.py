@@ -114,7 +114,7 @@ def _add_form(place: str):
         key = st.selectbox(
             "Version (extension et rareté)", list(versions),
             format_func=lambda k: "Je ne sais pas" if k == UNKNOWN else
-            f"{versions[k]['set_name']} · {versions[k]['set_code']} · {R.label(versions[k]['rarity'])} · "
+            f"{versions[k]['set_name']} · {CM.french_code(versions[k]['set_code'])} · {R.label(versions[k]['rarity'])} · "
             f"{euros(versions[k]['trend'])}",
             help="Le code est imprimé sous l'illustration (ex. CRMS-FR020). Il donne le prix exact de ta version.")
         qty = st.number_input("Nombre d'exemplaires", 1, 99, 1)

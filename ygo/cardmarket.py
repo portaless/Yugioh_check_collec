@@ -60,6 +60,13 @@ def split_code(code: str | None) -> tuple[str, str] | None:
     return (m.group(1), m.group(2).replace("O", "0")) if m else None
 
 
+def french_code(code: str | None) -> str:
+    """Code d'impression de la version française (« RA02-EN013 » -> « RA02-FR013 ») : les cartes françaises gardent
+    le même numéro. Corrige au passage la lettre O mise pour un zéro."""
+    split = split_code(code)
+    return f"{split[0]}-FR{split[1]}" if split else str(code or "").replace("-EN", "-FR")
+
+
 def same_code(printed: str | None, owned: str) -> bool:
     """Le code noté dans l'Excel désigne-t-il cette impression ? Un préfixe seul (« CRMS ») suffit."""
     owned = owned.strip().upper()

@@ -171,7 +171,7 @@ def card_versions(card_id: int, name_en: str) -> dict:
         else:
             hint = ""
         stock.append({"rarity": R.label(v["rarity"]) or "Rareté ?", "fx": R.effect(v["rarity"]), "qty": v["qty"],
-                      "code": v["code"] or (p["set_code"] if p else ""), "set": p["set_name"] if p else "",
+                      "code": v["code"] or (CM.french_code(p["set_code"]) if p else ""), "set": p["set_name"] if p else "",
                       "price": p["trend"] if p else None, "mark": CONF_MARK.get(p["confidence"], "") if p else "",
                       "hint": hint, "where": " · ".join(f"{place} ×{qty}" for place, qty in
                                                        storage(card_id, v["rarity"], v["code"], True).items())})
@@ -181,7 +181,7 @@ def card_versions(card_id: int, name_en: str) -> dict:
             continue
         seen.add((p["set_name"], p["rarity"]))
         others.append({"rarity": R.label(p["rarity"]), "fx": R.effect(p["rarity"]), "set": p["set_name"],
-                       "code": p["set_code"], "price": p["trend"], "mark": CONF_MARK.get(p["confidence"], "")})
+                       "code": CM.french_code(p["set_code"]), "price": p["trend"], "mark": CONF_MARK.get(p["confidence"], "")})
     value = sum(s["qty"] * s["price"] for s in stock if s["price"] is not None)
     return {"stock": stock, "others": others, "value": value, "cm": CM.search_url(name_en)}
 

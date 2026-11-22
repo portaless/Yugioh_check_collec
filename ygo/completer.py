@@ -47,10 +47,7 @@ def _set(code: str) -> str:
     return str(code or "").split("-")[0].strip().upper()
 
 
-def _french(code: str) -> str:
-    """Code d'impression version française ; corrige au passage la lettre O mise pour un zéro."""
-    split = CM.split_code(code)
-    return f"{split[0]}-FR{split[1]}" if split else code.replace("-EN", "-FR")
+_french = CM.french_code
 
 
 def _todo(row: dict) -> bool:
