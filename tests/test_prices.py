@@ -18,6 +18,8 @@ def test_split_code_ignores_language():
     assert CM.split_code("CRMS-FR042") == CM.split_code("CRMS-EN042") == ("CRMS", "042")
     assert CM.split_code("PSV-E088") == CM.split_code("PSV-088") == ("PSV", "088")
     assert CM.split_code("n'importe quoi") is None
+    assert CM.same_code("CRMS-EN042", "crms") and CM.same_code("CRMS-EN042", "CRMS-FR042")
+    assert not CM.same_code("CRMS-EN042", "CRMS-FR043") and not CM.same_code("CRMS-EN042", "LC5D")
 
 
 # ----------------------------------------------------------------- produit Cardmarket d'une impression

@@ -57,6 +57,14 @@ def split_code(code: str | None) -> tuple[str, str] | None:
     return (m.group(1), m.group(2)) if m else None
 
 
+def same_code(printed: str | None, owned: str) -> bool:
+    """Le code noté dans l'Excel désigne-t-il cette impression ? Un préfixe seul (« CRMS ») suffit."""
+    full = split_code(owned)
+    if full:
+        return split_code(printed) == full
+    return (split_code(printed) or ("",))[0] == owned.strip().upper()
+
+
 def _digits(number) -> str:
     """Numéro CardTrader « 020ul » -> « 20 »."""
     return re.sub(r"\D", "", str(number or "")).lstrip("0")
@@ -268,7 +276,7 @@ def _versions(prints: list[dict], rows) -> list[dict]:
     out = []
     for (rar, code), qty in merged.items():
         matches = [p for p in prints if (rar is None or p["rarity"] == rar)
-                   and (code is None or split_code(p["set_code"]) == split_code(code))]
+                   and (code is None or same_code(p["set_code"], code))]
         priced = sorted((p for p in matches if p["trend"] is not None), key=lambda p: p["trend"])
         best = priced[0] if priced else (matches[0] if matches else None)
         out.append({"rarity": rar, "code": code, "qty": qty, "print": best,
