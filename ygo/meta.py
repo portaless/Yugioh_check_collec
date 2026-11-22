@@ -7,6 +7,7 @@ import re
 import time
 from collections import Counter
 from datetime import date
+from functools import lru_cache
 
 import requests
 
@@ -75,7 +76,12 @@ def resolve(con, ids: list[int]) -> list[dict]:
 
 
 def opponent_flags(c: dict) -> dict:
-    name, frame, desc = c["name_en"], c["frame_type"], c["desc_en"] or ""
+    return _flags(c["name_en"], c["frame_type"], c["desc_en"] or "")
+
+
+@lru_cache(maxsize=None)
+def _flags(name: str, frame: str, desc: str) -> dict:
+    """Mémorisé : la recherche dans le texte ne tourne qu'une fois par carte."""
     monster = frame not in ("spell", "trap")
     return {
         "handtrap": name in EXTRA_HANDTRAPS or (monster and bool(HANDTRAP_TEXT.search(desc))),

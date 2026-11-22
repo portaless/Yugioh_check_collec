@@ -6,3 +6,30 @@ enableStaticServing = true
 
 [browser]
 gatherUsageStats = false
+
+# Direction artistique « table de duel » : bleu nuit, accents or, texte crème
+[theme]
+base = "dark"
+primaryColor = "#E3B341"
+backgroundColor = "#0D1020"
+secondaryBackgroundColor = "#171B30"
+textColor = "#E9E6DD"
+linkColor = "#E3B341"
+borderColor = "#2A3050"
+showWidgetBorder = true
+baseRadius = "0.7rem"
+buttonRadius = "0.6rem"
+greenColor = "#3DBE8B"
+redColor = "#E8776D"
+yellowColor = "#E3A93A"
+blueColor = "#6C8EBF"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "Cinzel:https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+dataframeHeaderBackgroundColor = "#1E2340"
+chartCategoricalColors = ["#E3B341", "#6C8EBF", "#3DBE8B", "#C9853A", "#9B7FD1", "#E8776D"]
+
+[theme.sidebar]
+backgroundColor = "#0A0D1A"
+secondaryBackgroundColor = "#171B30"
+borderColor = "#1E2340"

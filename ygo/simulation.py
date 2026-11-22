@@ -152,35 +152,40 @@ class Matchup:
 OPP_FLAGS = ("handtrap", "breaker")
 
 
-def matchup(deck: list[dict], opp_deck: list[dict], n: int = 10_000, seed: int = 0) -> Matchup:
+def _opp_draws(opp_deck: list[dict], n: int, rng) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Interruptions (6 cartes), destructions (6 cartes) et interruptions (5 cartes) de l'adversaire par main."""
+    from .meta import opponent_flags
+    m = np.array([[opponent_flags(c)[f] for f in OPP_FLAGS] for c in opp_deck], dtype=np.int8)
+    d = m[np.argsort(rng.random((n, len(opp_deck))), axis=1)[:, :6]]
+    return d[:, :6, 0].sum(axis=1), d[:, :6, 1].sum(axis=1), d[:, :5, 0].sum(axis=1)
+
+
+def matchups(deck: list[dict], opp_decks: list[list[dict]], n: int = 10_000, seed: int = 0) -> list[Matchup]:
     """Hypothèses (affichées dans l'IHM) :
     - chaque interruption adverse en main coupe une ligne de jeu : il faut un starter de plus qu'elles ;
     - en premier, l'adversaire a 6 cartes ; ton plateau tient si tu gardes au moins une protection,
       et au moins autant que ses cartes de destruction ;
-    - en second, l'adversaire a 5 cartes et garde ses interruptions pour ton tour."""
-    from .meta import opponent_flags
+    - en second, l'adversaire a 5 cartes et garde ses interruptions pour ton tour.
+    Tes mains sont tirées une seule fois et confrontées à chaque adversaire."""
     rng = np.random.default_rng(seed)
-    me = _matrix(deck)
-    opp = np.array([[opponent_flags(c)[f] for f in OPP_FLAGS] for c in opp_deck], dtype=np.int8)
-    my_draw = me[np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]]
-    opp_draw = opp[np.argsort(rng.random((n, len(opp_deck))), axis=1)[:, :6]]
-    idx = {f: i for i, f in enumerate(FLAGS)}
-
-    def mine(f, k):
-        return my_draw[:, :k, idx[f]].sum(axis=1)
-
-    first = {f: mine(f, 5) for f in FLAGS}
-    second = {f: mine(f, 6) for f in FLAGS}
-    ht6, br6 = opp_draw[:, :6, 0].sum(axis=1), opp_draw[:, :6, 1].sum(axis=1)
-    ht5 = opp_draw[:, :5, 0].sum(axis=1)
-
+    drawn = _matrix(deck)[np.argsort(rng.random((n, len(deck))), axis=1)[:, :6]]
+    first = {f: drawn[:, :5, i].sum(axis=1) for i, f in enumerate(FLAGS)}
+    second = {f: drawn[:, :6, i].sum(axis=1) for i, f in enumerate(FLAGS)}
     playable_first, _ = _verdicts(first, True)
-    turn1 = playable_first & (first["starter"] >= ht6 + 1)
-    holds = turn1 & (first["protect"] >= np.maximum(1, br6))
     playable_second, _ = _verdicts(second, False)
-    comeback = playable_second & (second["starter"] >= ht5 + 1)
-    strong = comeback & ((second["interrupt"] + second["breaker"]) >= 1)
-    return Matchup(turn1.mean(), holds.mean(), comeback.mean(), strong.mean(), ht6.mean(), br6.mean())
+    out = []
+    for k, opp in enumerate(opp_decks):
+        ht6, br6, ht5 = _opp_draws(opp, n, np.random.default_rng((seed, k)))
+        turn1 = playable_first & (first["starter"] >= ht6 + 1)
+        holds = turn1 & (first["protect"] >= np.maximum(1, br6))
+        comeback = playable_second & (second["starter"] >= ht5 + 1)
+        strong = comeback & ((second["interrupt"] + second["breaker"]) >= 1)
+        out.append(Matchup(turn1.mean(), holds.mean(), comeback.mean(), strong.mean(), ht6.mean(), br6.mean()))
+    return out
+
+
+def matchup(deck: list[dict], opp_deck: list[dict], n: int = 10_000, seed: int = 0) -> Matchup:
+    return matchups(deck, [opp_deck], n, seed)[0]
 
 
 def example_game(deck: list[dict], opp_deck: list[dict], seed: int) -> dict:

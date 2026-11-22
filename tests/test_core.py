@@ -1,5 +1,3 @@
-from collections import Counter
-
 import pytest
 
 from ygo import analysis as A

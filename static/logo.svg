@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 64" width="360" height="64">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3D27A"/>
+      <stop offset="1" stop-color="#B9862C"/>
+    </linearGradient>
+  </defs>
+  <!-- deux cartes en éventail -->
+  <rect x="6" y="10" width="30" height="44" rx="4" fill="#171B30" stroke="url(#gold)" stroke-width="2.5" transform="rotate(-12 21 32)"/>
+  <rect x="16" y="8" width="30" height="44" rx="4" fill="#1E2340" stroke="url(#gold)" stroke-width="2.5"/>
+  <circle cx="31" cy="30" r="8" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+  <circle cx="31" cy="30" r="2.6" fill="url(#gold)"/>
+  <text x="60" y="30" font-family="Cinzel, Georgia, serif" font-weight="700" font-size="21" fill="url(#gold)" letter-spacing="1">MA COLLECTION</text>
+  <text x="61" y="50" font-family="Inter, Arial, sans-serif" font-weight="500" font-size="13" fill="#A8A49A" letter-spacing="2.5">YU-GI-OH! · DECK LAB</text>
+</svg>

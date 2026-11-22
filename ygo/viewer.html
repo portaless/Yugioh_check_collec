@@ -2,28 +2,31 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600&display=swap">
 <style>
-  :root { --fg: #262730; --muted: rgba(38,39,48,.62); --panel: rgba(128,128,128,.10); --accent: #d0574d; --btn: rgba(128,128,128,.16); }
-  @media (prefers-color-scheme: dark) {
-    :root { --fg: #fafafa; --muted: rgba(250,250,250,.62); --panel: rgba(255,255,255,.07); --btn: rgba(255,255,255,.12); }
-  }
+  /* mêmes couleurs que le thème de l'IHM (.streamlit/config.toml) */
+  :root { --fg: #E9E6DD; --muted: #A8A49A; --panel: #171B30; --border: #2A3050; --gold: #E3B341; --btn: #1E2340; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font-family: "Source Sans Pro", "Source Sans 3", system-ui, sans-serif; color: var(--fg); background: transparent; overflow: hidden; }
+  html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; color: var(--fg); background: transparent; overflow: hidden; }
   body:focus { outline: none; }
   .viewer { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 28px; height: calc(100% - 56px); }
   .art { position: relative; display: flex; align-items: flex-start; justify-content: center; min-height: 0; }
   .art img { max-width: 100%; max-height: 100%; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.28); transition: opacity .12s ease; user-select: none; -webkit-user-drag: none; }
   .art img.loading { opacity: .35; }
   .info { overflow-y: auto; padding-right: 6px; min-height: 0; }
-  h2 { margin: 0 0 .6rem; font-size: 1.6rem; line-height: 1.2; }
+  h2 { margin: 0 0 .8rem; font-size: 1.65rem; line-height: 1.2; font-family: Cinzel, Georgia, serif; color: var(--gold);
+       padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.1rem; margin: 0 0 1rem; font-size: 1.05rem; }
   dt { color: var(--muted); }
   dd { margin: 0; font-weight: 600; }
   .note { color: var(--muted); font-size: .9rem; margin: 0 0 .4rem; }
-  .effect { font-size: 1.12rem; line-height: 1.6; padding: .9rem 1.1rem; border-radius: 10px; background: var(--panel); white-space: pre-line; }
+  .effect { font-size: 1.1rem; line-height: 1.65; padding: 1rem 1.2rem; border-radius: 10px; background: var(--panel);
+            border: 1px solid var(--border); border-left: 3px solid var(--gold); white-space: pre-line; }
   .nav { position: fixed; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  button { font: inherit; font-size: 1rem; color: var(--fg); background: var(--btn); border: 0; border-radius: 10px; padding: .55rem 1.2rem; cursor: pointer; min-width: 150px; }
-  button:hover:not(:disabled) { filter: brightness(1.15); }
+  button { font: inherit; font-size: 1rem; color: var(--fg); background: var(--btn); border: 1px solid var(--border);
+           border-radius: 10px; padding: .55rem 1.2rem; cursor: pointer; min-width: 150px; transition: border-color .15s, color .15s; }
+  button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .art img { box-shadow: 0 0 0 1px var(--border), 0 12px 32px rgba(0,0,0,.5); }
   button:disabled { opacity: .35; cursor: default; }
   .pos { color: var(--muted); font-size: .95rem; text-align: center; }
   .pos kbd { font-family: inherit; font-size: .8rem; padding: 1px 6px; border-radius: 4px; background: var(--btn); }
