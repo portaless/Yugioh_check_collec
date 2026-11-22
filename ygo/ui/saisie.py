@@ -7,7 +7,7 @@ from ygo import importer
 from ygo import install
 from ygo import rarity as R
 from ygo import stock
-from ygo.ui.core import card_img, catalog, con
+from ygo.ui.core import card_img, card_search, catalog, con
 from ygo.ui.style import page_header
 
 NEW = "＋ Nouveau rangement…"
@@ -31,12 +31,14 @@ def _rangement() -> str | None:
 
 def _add_form(place: str):
     df = catalog()
-    names = dict(zip(df["id"].astype(int), df["nom"]))
-    card_id = st.selectbox("Carte", list(names), index=None, format_func=names.get, key="saisie_card",
-                           placeholder="Tape le nom de la carte (français ou anglais)…")
+    picked = card_search("saisie_search", "Tape le nom de la carte (français ou anglais)…")
+    if picked:
+        st.session_state["saisie_card"] = picked
+    card_id = st.session_state.get("saisie_card")
     if card_id is None:
         return
     card = df[df["id"] == card_id].iloc[0]
+    st.markdown(f"Carte choisie : **{card['nom']}**")
     left, right = st.columns([1, 3])
     card_img(left, card, "180px")
     prints = sorted(CM.card_printings(con, card_id), key=lambda p: (p["set_name"], R.rank(p["rarity"] or "")))
