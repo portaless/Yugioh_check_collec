@@ -55,6 +55,49 @@ def _sheet(wb, name: str):
     return ws, {h: i + 1 for i, h in enumerate(header) if h}
 
 
+def _check_name(name: str, existing: list[str]) -> str:
+    """Nom de feuille Excel valide : 31 caractères au plus, sans : \\ / ? * [ ], et pas déjà pris."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Donne un nom au rangement.")
+    if len(name) > 31 or any(ch in name for ch in ':\\/?*[]'):
+        raise ValueError("Nom trop long (31 caractères au plus) ou avec un caractère interdit : \\ / ? * [ ] :")
+    if name.lower() in (s.lower() for s in existing):
+        raise ValueError(f"Le rangement « {name} » existe déjà.")
+    return name
+
+
+def create(name: str, path=None) -> str:
+    """Crée un rangement vide (feuille avec ses en-têtes)."""
+    path = path or importer.EXCEL_PATH
+    wb = openpyxl.load_workbook(path) if path.exists() else openpyxl.Workbook()
+    if not path.exists():
+        wb.remove(wb.active)
+    name = _check_name(name, wb.sheetnames)
+    _sheet(wb, name)
+    wb.save(path)
+    return name
+
+
+def rename(old: str, new: str, path=None) -> str:
+    path = path or importer.EXCEL_PATH
+    wb = openpyxl.load_workbook(path)
+    new = _check_name(new, [s for s in wb.sheetnames if s != old])
+    wb[old].title = new
+    wb.save(path)
+    return new
+
+
+def delete(name: str, path=None) -> None:
+    """Supprime un rangement et les cartes qu'il contient (l'Excel garde au moins une feuille)."""
+    path = path or importer.EXCEL_PATH
+    wb = openpyxl.load_workbook(path)
+    if len(wb.sheetnames) == 1:
+        raise ValueError("C'est ton seul rangement : crée-en un autre avant de supprimer celui-ci.")
+    del wb[name]
+    wb.save(path)
+
+
 def add(sheet: str, name: str, quantity: int, rarity: str | None, code: str | None, path=None) -> None:
     """Ajoute une carte au rangement (rareté canonique ou libre, code d'impression facultatif)."""
     path = path or importer.EXCEL_PATH

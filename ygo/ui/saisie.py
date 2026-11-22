@@ -10,7 +10,6 @@ from ygo import stock
 from ygo.ui.core import card_img, card_search, catalog, con
 from ygo.ui.style import page_header
 
-NEW = "＋ Nouveau rangement…"
 UNKNOWN = "unknown"
 
 
@@ -18,15 +17,66 @@ def euros(v) -> str:
     return "prix inconnu" if v is None else f"{v:.2f} €".replace(".", ",")
 
 
+def _apply(action, message: str, place: str | None = None):
+    """Modifie l'Excel, réimporte la collection et recharge la page avec un message."""
+    try:
+        action()
+        stock.refresh(con)
+    except PermissionError:
+        st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
+        return
+    except ValueError as e:
+        st.error(str(e))
+        return
+    if place is not None:
+        st.session_state["saisie_place"] = place
+    st.session_state["saisie_done"] = message
+    st.cache_data.clear()
+    st.rerun()
+
+
+def _manage_zones(places: list[str], current: str | None):
+    """Créer, renommer ou supprimer une zone de stock (une feuille de l'Excel)."""
+    with st.expander("Gérer mes zones de stock", expanded=not places):
+        st.caption("Une zone = un endroit où tu ranges des cartes : classeur, boîte A, étagère… Une zone dont le "
+                   "nom commence par deck_ est aussi importée comme deck.")
+        c1, c2 = st.columns([3, 1])
+        new = c1.text_input("Nouvelle zone", placeholder="ex. boîte C", key="zone_new")
+        c2.write("")
+        if c2.button("Créer", width="stretch", disabled=not new.strip()):
+            _apply(lambda: stock.create(new), f"Zone « {new.strip()} » créée.", new.strip())
+        if not current:
+            return
+        c1, c2 = st.columns([3, 1])
+        renamed = c1.text_input(f"Renommer « {current} »", value=current, key=f"zone_rename_{current}")
+        c2.write("")
+        if c2.button("Renommer", width="stretch", disabled=renamed.strip() in ("", current)):
+            def rename():
+                stock.rename(current, renamed)
+                # un deck_… renommé garde son contenu : le deck suit le nouveau nom
+                con.execute("UPDATE decks SET name = ? WHERE name = ?", (renamed.strip(), current))
+                con.commit()
+            _apply(rename, f"Zone « {current} » renommée en « {renamed.strip()} ».", renamed.strip())
+        count = sum(r["nombre"] for r in stock.rows(current))
+        c1, c2 = st.columns([3, 1])
+        sure = c1.checkbox(f"Supprimer « {current} »" + (f" et ses {count} cartes" if count else " (vide)"),
+                           key=f"zone_delete_{current}")
+        c2.write("")
+        if c2.button("Supprimer", width="stretch", disabled=not sure):
+            others = [p for p in places if p != current]
+            _apply(lambda: stock.delete(current), f"Zone « {current} » supprimée.", others[0] if others else None)
+
+
 def _rangement() -> str | None:
     places = stock.sheets()
-    default = places.index(st.session_state["saisie_place"]) if st.session_state.get("saisie_place") in places else 0
-    choice = st.selectbox("Rangement", places + [NEW], index=default if places else 0,
-                          help="Une feuille de ton Excel : classeur, boîte A… Un deck s'écrit dans une feuille deck_…")
-    if choice == NEW:
-        name = st.text_input("Nom du rangement", placeholder="ex. boîte C").strip()
-        return name or None
-    return choice
+    current = None
+    if places:
+        default = places.index(st.session_state["saisie_place"]) if st.session_state.get("saisie_place") in places else 0
+        current = st.selectbox("Zone de stock", places, index=default,
+                               help="Où ranger les cartes que tu ajoutes : une feuille de ton Excel.")
+        st.session_state["saisie_place"] = current
+    _manage_zones(places, current)
+    return current
 
 
 def _add_form(place: str):
@@ -54,17 +104,9 @@ def _add_form(place: str):
         if st.button(f"Ajouter à « {place} »", type="primary"):
             p = versions[key]
             name = card["name_fr"] if isinstance(card["name_fr"], str) else card["name_en"]
-            try:
-                stock.add(place, name, qty, p["rarity"] if p else None, p["set_code"] if p else None)
-                stock.refresh(con)
-            except PermissionError:
-                st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
-                return
-            st.session_state["saisie_place"] = place
-            st.session_state["saisie_done"] = f"{qty} × {name} ajouté(s) à « {place} »."
             st.session_state.pop("saisie_card", None)
-            st.cache_data.clear()
-            st.rerun()
+            _apply(lambda: stock.add(place, name, qty, p["rarity"] if p else None, p["set_code"] if p else None),
+                   f"{qty} × {name} ajouté(s) à « {place} ».", place)
 
 
 def _contents(place: str):
@@ -81,15 +123,7 @@ def _contents(place: str):
                                                                help="0 = retirer la carte")})
     changes = {int(i): int(q) for i, q in edited["nombre"].items() if q != table.loc[i, "nombre"]}
     if changes and st.button("Enregistrer les modifications", type="primary"):
-        try:
-            stock.update(place, changes)
-            stock.refresh(con)
-        except PermissionError:
-            st.error("L'Excel est ouvert ailleurs : ferme-le puis recommence.")
-            return
-        st.session_state["saisie_done"] = "Modifications enregistrées."
-        st.cache_data.clear()
-        st.rerun()
+        _apply(lambda: stock.update(place, changes), "Modifications enregistrées.")
 
 
 def page_saisie():
@@ -103,7 +137,7 @@ def page_saisie():
         st.success(st.session_state.pop("saisie_done"))
     place = _rangement()
     if not place:
-        st.caption("Donne un nom au rangement pour commencer.")
+        st.caption("Crée ta première zone de stock pour commencer.")
         return
     st.subheader("Ajouter une carte")
     _add_form(place)
