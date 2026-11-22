@@ -71,7 +71,9 @@ def download(refresh: bool = False, log=print) -> dict[int, dict]:
         for bp in json.loads(path.read_text(encoding="utf8")):
             rarity = R.canonical(_fixed(bp, "rarity"))
             for cm_id in bp.get("card_market_ids") or []:
-                index[int(cm_id)] = {"rarity": rarity, "number": _fixed(bp, "collector"), "expansion": exp["name"]}
+                # numéro sans préfixe (« 020 », « 020ul ») : le préfixe est le code de l'extension (« crms »)
+                index[int(cm_id)] = {"rarity": rarity, "number": _fixed(bp, "collector"), "expansion": exp["name"],
+                                     "code": (exp.get("code") or "").upper()}
         if n % 100 == 0:
             log(f"  {n}/{len(expansions)} extensions lues")
     INDEX_PATH.write_text(json.dumps(index), encoding="utf8")

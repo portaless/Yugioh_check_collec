@@ -57,6 +57,11 @@ def split_code(code: str | None) -> tuple[str, str] | None:
     return (m.group(1), m.group(2)) if m else None
 
 
+def _digits(number) -> str:
+    """Numéro CardTrader « 020ul » -> « 20 »."""
+    return re.sub(r"\D", "", str(number or "")).lstrip("0")
+
+
 def load_choices() -> dict[str, int]:
     if not CHOICES_PATH.exists():
         return {}
@@ -90,10 +95,9 @@ def _expansions(products, sets_by_name, ct_index) -> dict[str, int]:
                 if split_code(code):
                     prefix_to_set[split_code(code)[0]].add(set_name)
         for p in products:
-            info = ct_index.get(p["idProduct"])
-            code = split_code(info and info.get("number"))
-            if code and len(prefix_to_set.get(code[0], ())) == 1:
-                votes[next(iter(prefix_to_set[code[0]]))][p["idExpansion"]] += 1
+            prefix = (ct_index.get(p["idProduct"]) or {}).get("code")
+            if prefix and len(prefix_to_set.get(prefix, ())) == 1:
+                votes[next(iter(prefix_to_set[prefix]))][p["idExpansion"]] += 1
         mapping = {s: max(v, key=v.get) for s, v in votes.items()}
 
     exp_names = defaultdict(set)
@@ -203,7 +207,8 @@ def _assign_distinct(card_id, prints, cands, ct_index, trend, choices):
                 continue
             same = [p for p in cands if (ct_index.get(p) or {}).get("rarity") == rar]
             if len(same) > 1:  # même rareté sous deux numéros : le numéro tranche
-                same = [p for p in same if split_code(ct_index[p].get("number")) == split_code(code)] or same[:1]
+                num = split_code(code)
+                same = [p for p in same if num and _digits(ct_index[p].get("number")) == num[1].lstrip("0")] or same[:1]
             if same:
                 out[i] = (same[0], "exact")
     todo = [i for i in range(len(prints)) if out[i] is None]
