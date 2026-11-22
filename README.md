@@ -4,13 +4,23 @@ Base SQLite de ma collection (source : `yugioh.xlsx`) enrichie avec le catalogue
 
 ## Démarrage
 
+Après un `git clone` :
+
 ```bash
 python -m venv .venv                              # une seule fois : crée l'environnement Python
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m ygo.importer          # construit data/yugioh.db (--refresh pour retélécharger le catalogue)
-.venv\Scripts\python.exe -m ygo.meta              # télécharge les decks de tournoi récents
-.venv\Scripts\python.exe -m ygo.cardmarket        # prix Cardmarket par impression (--cardtrader pour les raretés exactes)
 .venv\Scripts\python.exe lancer.py                # ou : python -m streamlit run app.py
+```
+
+Au premier lancement, l'appli s'installe toute seule (quelques minutes, connexion internet requise) : catalogue des
+cartes, collection de l'Excel, decks, méta et prix. Même chose en ligne de commande : `python -m ygo.install`.
+
+Pour tout mettre à jour ensuite, la page **Import**, ou :
+
+```bash
+.venv\Scripts\python.exe -m ygo.importer --refresh  # retélécharge le catalogue et réimporte l'Excel
+.venv\Scripts\python.exe -m ygo.meta                # decks de tournoi récents
+.venv\Scripts\python.exe -m ygo.cardmarket --refresh --cardtrader  # prix (et raretés exactes, avec le jeton)
 ```
 
 Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés tant que `data/yugioh.db` n'existe pas).
@@ -19,7 +29,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 
 | Section | Page | Rôle |
 |---|---|---|
-| Ma collection | Collection | Galerie de tes cartes, fiche agrandie navigable au clavier (← →) avec ton stock par rareté, prix et effet de rareté |
+| Ma collection | Collection | Galerie de tes cartes, fiche agrandie navigable au clavier (← →) avec ton stock par rareté, rangement (feuille de l'Excel), prix et effet de rareté |
 | | Constructeur de deck | Composer un deck, légalité et régularité des mains en direct, export `.ydk` |
 | | Bourse | Évolution du prix de tes cartes et de ta collection depuis le 1er novembre 2026, relevé Cardmarket quotidien |
 | Analyse | Analyse | Composition et probabilités d'un deck |
@@ -53,5 +63,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
   version possédée, valeur de la collection). Ils ne se régénèrent pas : à garder et à commiter.
 - `data/cardtrader_token.txt` (facultatif, non versionné) : jeton API CardTrader, pour la rareté exacte des produits.
 - `traductions.json` : noms et textes français (non officiels) des cartes que l'API n'a pas encore en français.
-- `data/` et `static/cards/` (non versionnés) : base SQLite, catalogue, decks méta, images. Les decks créés dans l'IHM
-  vivent dans `data/yugioh.db` : exporte-les en `.ydk` pour les sauvegarder.
+- `decks.json` : copie des decks de l'IHM, mise à jour automatiquement ; un clone du dépôt les retrouve.
+- `cardtrader_index.json.gz` : rareté exacte de chaque produit Cardmarket (copie de l'index CardTrader), pour que
+  les clones en profitent sans jeton.
+- `data/` et `static/cards/` (non versionnés) : base SQLite, catalogue, decks méta, images, reconstruits au premier lancement.

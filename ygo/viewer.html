@@ -40,6 +40,7 @@
   .muted { color: var(--muted); }
   .price { color: #F3D27A; font-weight: 600; }
   .hint { color: #E3A93A; font-size: .78rem; }
+  .where { color: #E3B341; font-size: .78rem; }
   .empty { color: var(--muted); font-size: .92rem; margin: 0 0 .4rem; }
   details { margin: .9rem 0 0; }
   summary { cursor: pointer; color: var(--muted); font-size: .92rem; }
@@ -203,9 +204,11 @@ function showVersions(c) {
   for (const s of v.stock) {
     const box = el("div", "version");
     const f = foil(c.src, s.fx, s.rarity);
-    f.onclick = () => openZoom(c.src, s.fx, [s.rarity + " ×" + s.qty, s.set, s.code, euros(s.price, s.mark)]);
+    f.onclick = () => openZoom(c.src, s.fx, [s.rarity + " ×" + s.qty, s.set, s.code, euros(s.price, s.mark),
+                                             s.where ? "Rangé : " + s.where : ""]);
     box.append(f, el("b", "", s.rarity + " ×" + s.qty));
     if (s.code) box.append(el("div", "muted", s.code));
+    if (s.where) box.append(el("div", "where", "📦 " + s.where));
     box.append(el("div", "price", euros(s.price, s.mark)));
     if (s.hint) box.append(el("div", "hint", s.hint));
     stock.append(box);

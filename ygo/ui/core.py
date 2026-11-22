@@ -104,7 +104,20 @@ def card_facts(c) -> dict:
     facts["Archétype"] = c["archétype"]
     facts["Banlist TCG"] = c["banlist"] or "Illimitée"
     facts["En stock"] = int(c["owned"])
+    places = storage(int(c["id"]))
+    if places:
+        facts["Rangement"] = " · ".join(f"{place} ×{qty}" for place, qty in places.items())
     return {k: str(v) for k, v in facts.items() if v not in ("", None)}
+
+
+def storage(card_id: int, rarity: str | None = None, code: str | None = None, by_version: bool = False) -> dict:
+    """Rangement des exemplaires : feuille de l'Excel -> quantité. Avec by_version, limité à une rareté et un code."""
+    sql = "SELECT location, SUM(quantity) FROM collection WHERE card_id = ?"
+    args = [card_id]
+    if by_version:
+        sql += " AND COALESCE(rarity, '') = ? AND COALESCE(UPPER(TRIM(set_code)), '') = ?"
+        args += [rarity or "", code or ""]
+    return dict(con.execute(sql + " GROUP BY location ORDER BY location", args).fetchall())
 
 
 def effect_text(c) -> str:
@@ -146,7 +159,8 @@ def card_versions(card_id: int, name_en: str) -> dict:
         stock.append({"rarity": R.label(v["rarity"]) or "Rareté ?", "fx": R.effect(v["rarity"]), "qty": v["qty"],
                       "code": v["code"] or (p["set_code"] if p else ""), "set": p["set_name"] if p else "",
                       "price": p["trend"] if p else None, "mark": CONF_MARK.get(p["confidence"], "") if p else "",
-                      "hint": hint})
+                      "hint": hint, "where": " · ".join(f"{place} ×{qty}" for place, qty in
+                                                       storage(card_id, v["rarity"], v["code"], True).items())})
     others, seen = [], set(used)
     for p in sorted(prints, key=lambda p: (R.rank(p["rarity"]), p["trend"] if p["trend"] is not None else 1e9)):
         if (p["set_name"], p["rarity"]) in seen:
