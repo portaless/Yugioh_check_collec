@@ -14,6 +14,7 @@ from ygo.ui.core import con  # noqa: E402
 from ygo.ui.data import page_corrections, page_import  # noqa: E402
 from ygo.ui.deck_analysis import page_analysis  # noqa: E402
 from ygo.ui.duel import page_duel  # noqa: E402
+from ygo.ui.duel_meta import page_duel_meta  # noqa: E402
 from ygo.ui.generator import page_generator  # noqa: E402
 from ygo.ui.meta_sim import page_meta  # noqa: E402
 from ygo.ui.saisie import page_saisie  # noqa: E402
@@ -46,6 +47,7 @@ pages = {
     "Analyse": [
         st.Page(page_analysis, title="Analyse", icon=":material/insights:", url_path="analyse"),
         st.Page(page_duel, title="Duel de decks", icon=":material/swords:", url_path="duel"),
+        st.Page(page_duel_meta, title="Duel contre la méta", icon=":material/sports_esports:", url_path="duel-meta"),
         st.Page(page_meta, title="Simulation méta", icon=":material/public:", url_path="meta"),
         st.Page(page_generator, title="Générateur de build", icon=":material/auto_awesome:", url_path="generateur"),
     ],

@@ -222,3 +222,18 @@ def test_simulated_duel_is_played_turn_by_turn_on_a_legal_board(by_id):
                 assert total == sum(c["quantity"] for c in deck)   # aucune carte perdue ni dupliquée
                 assert all(c["frame_type"] not in ("spell", "trap")
                            for c in side["monsters"] for c in [by_id[c["id"]]])
+
+
+def test_bot_roles_for_the_playable_duel(by_id):
+    from ygo import playtest as T
+    deck = [dict(c, zone="main", quantity=2, linkval=None, atk=1000, **{"def": 1000}, desc_fr=None, attribute="LIGHT")
+            for c in by_id.values() if c["frame_type"] not in ("link", "synchro", "xyz")]
+    side = T.side("Test", T.from_deck(deck, "main"), [], MEKK, {})
+    roles = {c["en"]: c["role"] for c in side["main"]}
+    assert len(side["main"]) == 2 * len(deck) and side["life"] == 8000
+    assert roles["Ash Blossom & Joyous Spring"] == "negate"
+    assert roles["Harpie's Feather Duster"] == "spell_wipe" and roles["Raigeki"] == "monster_wipe"
+    assert roles["Solemn Judgment"] == "protect"                # Piège posé : annule une activation ou une attaque
+    assert roles["Mulcharmy Fuwalos"] == "draw"
+    blue_sky = next(c for c in side["main"] if c["en"] == "Mekk-Knight Blue Sky")
+    assert blue_sky["starter"] and blue_sky["engine"] and blue_sky["name"] == "Ciel Bleu Mekk-Chevalier"
