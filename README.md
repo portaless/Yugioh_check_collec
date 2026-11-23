@@ -44,7 +44,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 | | Constructeur de deck | Composer un deck, légalité et régularité des mains en direct, export `.ydk` |
 | | Bourse | Évolution du prix de tes cartes et de ta collection depuis le 1er novembre 2026, relevé Cardmarket quotidien |
 | Analyse | Analyse | Composition et probabilités d'un deck |
-| | Duel de decks | Deux decks face à face : KPI, mains d'exemple, leviers |
+| | Duel de decks | Deux decks face à face : KPI, duel simulé sur un plateau (rejoué étape par étape), leviers |
 | | Simulation méta | Tes builds contre les decks qui gagnent en tournoi |
 | | Générateur de build | Meilleur deck d'un archétype avec ton stock : recuit simulé sous contraintes de stock et de banlist |
 | Données | Corrections / Import | Reconnaissance des noms, version Cardmarket des raretés incertaines, réimport, prix, banlist, méthode |
