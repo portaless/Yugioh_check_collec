@@ -11,7 +11,8 @@ st.set_page_config(page_title="Ma collection Yu-Gi-Oh!", page_icon="🃏", layou
 from ygo.ui.bourse import page_bourse  # noqa: E402  (après set_page_config)
 from ygo.ui.collection import page_builder, page_collection  # noqa: E402
 from ygo.ui.core import con  # noqa: E402
-from ygo.ui.data import page_corrections, page_import  # noqa: E402
+from ygo.ui.corrections import page_corrections  # noqa: E402
+from ygo.ui.import_page import page_import  # noqa: E402
 from ygo.ui.deck_analysis import page_analysis  # noqa: E402
 from ygo.ui.duel import page_duel  # noqa: E402
 from ygo.ui.duel_meta import page_duel_meta  # noqa: E402

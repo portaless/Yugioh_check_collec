@@ -3,7 +3,8 @@ import streamlit as st
 
 from ygo.ui.bourse import page_bourse
 from ygo.ui.collection import page_builder, page_collection
-from ygo.ui.data import page_corrections, page_import
+from ygo.ui.corrections import page_corrections
+from ygo.ui.import_page import page_import
 from ygo.ui.deck_analysis import page_analysis
 from ygo.ui.duel import page_duel
 from ygo.ui.duel_meta import page_duel_meta
