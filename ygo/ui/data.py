@@ -13,6 +13,7 @@ from ygo import builds
 from ygo import cardmarket as CM
 from ygo import cardtrader
 from ygo import completer
+from ygo import engine_data
 from ygo import importer
 from ygo import install
 from ygo import noms_fr
@@ -218,6 +219,11 @@ def page_import():
                 noms_fr.download(con, log=lambda _: None)
             except (requests.RequestException, RuntimeError) as e:
                 st.warning(f"Noms français non mis à jour : {e}")
+        with st.spinner("Scripts des cartes pour le moteur de règles du duel…"):
+            try:
+                engine_data.download(log=lambda _: None)
+            except requests.RequestException as e:
+                st.warning(f"Moteur de règles non mis à jour : {e}")
         with st.spinner("Réimport de ta collection…"):
             importer.import_excel(con)
             if (CM.CM_DIR / "products.json").exists():

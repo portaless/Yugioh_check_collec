@@ -45,7 +45,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 | | Bourse | Évolution du prix de tes cartes et de ta collection depuis le 1er novembre 2026, relevé Cardmarket quotidien |
 | Analyse | Analyse | Composition et probabilités d'un deck |
 | | Duel de decks | Deux decks face à face : KPI, duel simulé sur un plateau (rejoué étape par étape), leviers |
-| | Duel contre la méta | Tu joues ton deck à la main contre une liste de tournoi jouée par un bot : combats, points de vie, interruptions (`ygo/playtest.py`, `ygo/ui/duel_meta.js`) |
+| | Duel contre la méta | Ton deck contre une liste de tournoi jouée par un bot, arbitré par le moteur de règles YGOPro : effets, chaînes et combats appliqués automatiquement, seules les actions légales sont proposées (`engine/`, `ygo/ui/duel_meta.js`) |
 | | Simulation méta | Tes builds contre les decks qui gagnent en tournoi |
 | | Générateur de build | Meilleur deck d'un archétype avec ton stock : recuit simulé sous contraintes de stock et de banlist |
 | Données | Corrections / Import | Reconnaissance des noms, version Cardmarket des raretés incertaines, réimport, prix, banlist, méthode |
@@ -87,6 +87,7 @@ destruction, et *hors moteur*. C'est une heuristique : elle ne joue pas les comb
   version possédée, valeur de la collection). Ils ne se régénèrent pas : à garder et à commiter.
 - `data/cardtrader_token.txt` (facultatif, non versionné) : jeton API CardTrader, pour la rareté exacte des produits.
 - `traductions.json` : noms et textes français (non officiels) des cartes que l'API n'a pas encore en français.
+- `static/engine/` : le moteur de règles du duel (YGOPro compilé en WebAssembly, [koishipro-core.js](https://github.com/purerosefallen/koishipro-core.js), licence MIT), construit depuis `engine/` (`cd engine && npm install && npm run build`, Node.js nécessaire seulement pour le reconstruire). Ses données (`static/engine/data/`, non versionnées) sont téléchargées au premier lancement ou par `python -m ygo.engine_data` : les scripts des cartes ([ygopro-scripts](https://github.com/Fluorohydride/ygopro-scripts), GPL-2.0), la base de cartes et les messages en français ([ygopro-database](https://github.com/mycard/ygopro-database)).
 - `noms_fr_officiels.json` : noms français officiels des cartes que YGOPRODeck ne traduit pas, relevés sur Yugipedia (CC BY-SA) par `python -m ygo.noms_fr` ; complété à chaque « Mettre à jour le catalogue ».
 - `ma_collection/` (facultatif, non versionné) : s'il existe, remplace les fichiers personnels ci-dessous
   (Excel, corrections, versions, historique, decks).

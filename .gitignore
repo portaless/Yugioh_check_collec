@@ -6,3 +6,5 @@ data/
 static/cards/
 static/cards_small/
 ma_collection/
+static/engine/data/
+engine/node_modules/

@@ -1,0 +1,16 @@
+{
+  "name": "yugioh-duel-engine",
+  "private": true,
+  "description": "Moteur de règles du duel (YGOPro en WebAssembly) pour la page Duel contre la méta",
+  "scripts": {
+    "build": "esbuild src/engine.js --bundle --format=esm --platform=browser --outfile=../static/engine/engine.js --external:fs --external:path --external:url --external:module --external:crypto --external:node:fs --external:node:path --external:node:url --external:node:module --external:node:crypto --log-level=warning && node copy-wasm.cjs"
+  },
+  "dependencies": {
+    "koishipro-core.js": "^1.5.6",
+    "sql.js": "^1.17.0",
+    "ygopro-msg-encode": "^1.4.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

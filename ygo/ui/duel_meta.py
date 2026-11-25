@@ -1,15 +1,16 @@
-"""Page Duel contre la méta : tu joues ton deck à la main contre une liste de tournoi jouée par un bot."""
+"""Page Duel contre la méta : ton deck contre une liste de tournoi jouée par un bot, arbitré par le moteur de
+règles YGOPro (effets, chaînes, combats appliqués automatiquement)."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import streamlit as st
 
 from ygo import analysis as A
+from ygo import engine_data
 from ygo import meta
 from ygo import playtest as T
-from ygo import plan as P
 from ygo.images import thumb_src
-from ygo.ui.core import con, deck_plan
+from ygo.ui.core import con
 from ygo.ui.style import page_header
 
 HERE = Path(__file__).parent
@@ -32,7 +33,16 @@ def _images(cards: list[dict]) -> dict[int, str]:
 
 def page_duel_meta():
     page_header("Duel contre la méta",
-                "Joue ton deck carte par carte contre une liste qui gagne en tournoi, jouée par un bot.", "Analyse")
+                "Joue ton deck contre une liste qui gagne en tournoi, jouée par un bot. Le moteur de règles applique "
+                "les effets, les chaînes et les combats comme en duel réel.", "Analyse")
+    if not engine_data.ready():
+        st.info("Le moteur de règles a besoin de ses données : les scripts qui programment l'effet de chaque carte "
+                "et sa base de cartes en français (environ 25 Mo, une seule fois).")
+        if st.button("Télécharger les données du moteur", type="primary"):
+            with st.spinner("Téléchargement des scripts des cartes…"):
+                engine_data.download(log=lambda _: None)
+            st.rerun()
+        return
     data = meta.load()
     if not data:
         st.info("Aucun deck méta téléchargé : va dans **Simulation méta** et clique sur « Mettre à jour le méta ».")
@@ -58,10 +68,8 @@ def page_duel_meta():
         return
     opp_main, opp_extra = meta.resolve(con, opp["main"]), meta.resolve(con, opp["extra"])
     imgs = _images(my_main + my_extra + opp_main + opp_extra)
-    payload = {
-        "me": T.side("Toi", my_main, my_extra, deck_plan(decks[mine]), imgs),
-        "bot": T.side(opp_name, opp_main, opp_extra, P.detect([dict(c, zone="main") for c in opp_main]), imgs),
-        "first": {"Moi": "me", "Lui": "bot"}.get(first, "coin"),
+    payload = T.payload((my_main, my_extra), (opp_main, opp_extra), imgs) | {
+        "botName": opp_name, "first": {"Moi": "me", "Lui": "bot"}.get(first, "coin"),
         "seed": st.session_state.get("duel_meta_seed", 0),
     }
     payload["key"] = f"{mine}|{opp['id']}|{first}|{payload['seed']}"
@@ -72,20 +80,18 @@ def page_duel_meta():
 
     with st.expander("Comment jouer et comment joue le bot"):
         st.markdown(f"""
-**Toi** : clique sur une carte pour ouvrir ses actions (invoquer, poser, activer, attaquer, envoyer au
-cimetière…), ou sur une pile (Deck, Extra, Cimetière, Bannies) pour la voir et y prendre une carte. Les effets ne
-sont pas automatisés : tu les appliques toi-même, comme sur un simulateur manuel. Les combats et les points de vie
-sont calculés avec les vrais ATK / DEF. Survole une carte pour lire son texte.
+**Les règles sont appliquées par le moteur** (YGOPro, le moteur open source des simulateurs communautaires) : chaque
+carte a son script qui programme son effet. Tu ne peux faire que des actions légales, et les effets se résolvent
+automatiquement, chaînes comprises.
 
-**Le bot** joue la liste « {opp_name} » selon le rôle de ses cartes, lu dans leur texte :
-- il lance son moteur avec ses starters (des monstres sortent de son deck), puis invoque depuis son Extra Deck ;
-- il annule l'activation de tes starters et cartes du moteur avec ses interruptions (Floraison de Cendres…) ou
-  ses Pièges posés, pioche à tes Invocations Spéciales (Mulcharmy, Maxx « C »), active Nibiru à ta 5e invocation ;
-- il détruit ton terrain avec ses cartes de destruction, pose ses Pièges et attaque ce qu'il peut battre.
+**Toi** : les cartes qui peuvent agir s'allument en doré ; clique dessus pour voir ce qui est possible (invoquer,
+poser, activer un effet, attaquer). Les boutons du haut changent de phase ou finissent le tour. Quand un effet
+peut être activé en réponse, le moteur te le propose ; quand il faut choisir des cartes, une zone ou une position,
+une fenêtre s'ouvre. Survole une carte pour lire son texte.
 
-**Tes réponses** : à chaque action importante du bot, une fenêtre te propose de répondre avec une interruption en
-main, une carte posée ou un effet rapide sur le terrain : la réponse annule son action.
+**Le bot** joue la liste « {opp_name} » par l'intermédiaire du même moteur : il active ses effets dès qu'il le peut,
+utilise ses interruptions dès qu'elles sont possibles, invoque et attaque. Sa stratégie est simple, mais il ne
+peut pas tricher.
 
-Le bot ne lit pas les effets carte par carte : ses combos sont résumés (moteur lancé ou coupé), comme dans les
-simulations de l'appli.
+Scripts des cartes : projet ygopro-scripts (GPL-2.0) ; base de cartes et textes : mycard/ygopro-database.
 """)

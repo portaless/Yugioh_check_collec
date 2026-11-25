@@ -224,16 +224,13 @@ def test_simulated_duel_is_played_turn_by_turn_on_a_legal_board(by_id):
                            for c in side["monsters"] for c in [by_id[c["id"]]])
 
 
-def test_bot_roles_for_the_playable_duel(by_id):
+def test_playable_duel_sends_card_codes_and_french_texts(by_id):
     from ygo import playtest as T
-    deck = [dict(c, zone="main", quantity=2, linkval=None, atk=1000, **{"def": 1000}, desc_fr=None, attribute="LIGHT")
-            for c in by_id.values() if c["frame_type"] not in ("link", "synchro", "xyz")]
-    side = T.side("Test", T.from_deck(deck, "main"), [], MEKK, {})
-    roles = {c["en"]: c["role"] for c in side["main"]}
-    assert len(side["main"]) == 2 * len(deck) and side["life"] == 8000
-    assert roles["Ash Blossom & Joyous Spring"] == "negate"
-    assert roles["Harpie's Feather Duster"] == "spell_wipe" and roles["Raigeki"] == "monster_wipe"
-    assert roles["Solemn Judgment"] == "protect"                # Piège posé : annule une activation ou une attaque
-    assert roles["Mulcharmy Fuwalos"] == "draw"
-    blue_sky = next(c for c in side["main"] if c["en"] == "Mekk-Knight Blue Sky")
-    assert blue_sky["starter"] and blue_sky["engine"] and blue_sky["name"] == "Ciel Bleu Mekk-Chevalier"
+    deck = [dict(c, zone="main", quantity=2, desc_fr=None) for c in by_id.values()
+            if c["frame_type"] not in ("link", "synchro", "xyz")]
+    extra = [dict(by_id[30], zone="extra", quantity=1, desc_fr=None)]
+    main, ext = T.from_deck(deck, "main"), T.from_deck(extra, "extra")
+    data = T.payload((main, ext), (main, []), {1: "app/static/cards_small/1.jpg", 2: None})
+    assert len(data["me"]["main"]) == 2 * len(deck) and data["me"]["extra"] == [30] and data["bot"]["extra"] == []
+    assert data["names"][1] == "Ciel Bleu Mekk-Chevalier" and data["names"][2] == "Mekk-Knight Red Moon"
+    assert data["imgs"] == {1: "app/static/cards_small/1.jpg"}           # image manquante : pas d'entrée

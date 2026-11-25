@@ -96,3 +96,36 @@
 .dm .modal .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: .4rem; margin-top: .7rem; }
 .dm .modal .mb { display: flex; gap: .4rem; justify-content: flex-end; margin-top: .8rem; }
 .dm .modal .mb.left { justify-content: flex-start; }
+
+/* moteur de règles : chargement, cartes jouables, zones à choisir, invites */
+.dm .loading { padding: 2rem; text-align: center; color: var(--mute); border: 1px dashed var(--line); border-radius: .8rem; }
+.dm .loading.err { color: var(--bad); }
+.dm .fieldwrap { position: relative; }
+.dm .card.can { box-shadow: 0 0 0 2px var(--gold); animation: dm-pulse 1.4s ease-in-out infinite; }
+.dm .pile.can { box-shadow: 0 0 0 2px var(--gold); animation: dm-pulse 1.4s ease-in-out infinite; }
+@keyframes dm-pulse { 50% { box-shadow: 0 0 0 2px var(--gold), 0 0 14px rgba(227,179,65,.7); } }
+.dm .slot.pick { border: 2px solid var(--gold); background: rgba(227,179,65,.14); cursor: pointer; }
+.dm .slot.picked { background: rgba(227,179,65,.4); }
+.dm .slot.fieldz { border-color: rgba(108,142,191,.45); }
+.dm .row.emz { margin: .35rem 0; }
+.dm .row.emz .slot:empty:not(.pick) { opacity: .55; }
+.dm .card .ov { position: absolute; top: .1rem; left: .2rem; z-index: 3; font-size: .62rem; font-weight: 700;
+                background: var(--gold); color: var(--deep); border-radius: .6rem; padding: 0 .3rem; }
+.dm .chip { padding: .05rem .5rem; font-size: .72rem; }
+.dm .banner { position: absolute; left: .6rem; right: .6rem; top: -.4rem; transform: translateY(-100%); z-index: 15;
+              background: rgba(13,16,32,.92); border: 1px solid var(--gold); border-radius: .6rem; padding: .5rem .8rem;
+              font-size: .88rem; pointer-events: none; }
+.dm .banner i { color: var(--mute); font-style: normal; }
+.dm .fieldwrap .modal { position: absolute; inset: 0; padding-top: 2.5rem; }
+.dm .yn { display: grid; grid-template-columns: 90px 1fr; gap: .7rem; align-items: start; margin-top: .6rem; font-size: .85rem; }
+.dm .yn img { width: 100%; border-radius: .3rem; }
+.dm .pickc { position: relative; display: grid; gap: .25rem; padding: .3rem; text-align: left; }
+.dm .pickc .card { position: relative; inset: auto; aspect-ratio: 168 / 246; }
+.dm .pickc span { font-size: .72rem; line-height: 1.2; }
+.dm .pickc i { display: block; color: var(--mute); font-style: normal; font-size: .66rem; }
+.dm .pickc.on { border-color: var(--gold); background: rgba(227,179,65,.18); }
+.dm .opt b { display: block; }
+.dm .ann { width: 100%; box-sizing: border-box; margin-top: .6rem; padding: .45rem .6rem; border-radius: .45rem;
+           background: var(--deep); color: var(--ink); border: 1px solid var(--line); font: inherit; }
+.dm button:disabled { opacity: .45; cursor: default; }
+.dm .log .it.bot b { color: #6C8EBF; } .dm .log .it.warn b { color: #E3A93A; }

@@ -15,7 +15,7 @@ import sys
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 
-from . import builds, cardmarket, importer, meta
+from . import builds, cardmarket, engine_data, importer, meta
 from .db import DATA_DIR, PERSONAL_DIR, ROOT, USER_DIR, connect
 
 DECKS_PATH = USER_DIR / "decks.json"
@@ -103,7 +103,7 @@ def sync_source(con) -> bool:
 
 
 STEPS = ["Catalogue des cartes (YGOPRODeck)", "Ta collection (Excel) et tes decks", "Decks de tournoi récents",
-         "Prix Cardmarket"]
+         "Prix Cardmarket", "Moteur de règles du duel (scripts des cartes)"]
 
 
 def install(con, log=print) -> None:
@@ -123,6 +123,9 @@ def install(con, log=print) -> None:
     cardmarket.download()
     cardmarket.build(con, log=lambda _: None)
     con.commit()
+    log(4, STEPS[4])
+    if not engine_data.ready():
+        engine_data.download(log=lambda _: None)
 
 
 def main():
