@@ -6,7 +6,8 @@ import streamlit as st
 from ygo import analysis as A
 from ygo import plan as P
 from ygo.fr import BANLIST, tr
-from ygo.ui.core import con, deck_counts, deck_selector, pct, plan_name, plan_selector
+from ygo.ui.core import con
+from ygo.ui.decks import deck_counts, deck_selector, pct, plan_name, plan_selector
 from ygo.ui.style import TONES, page_header, status_tile
 
 

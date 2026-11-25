@@ -20,7 +20,8 @@ from ygo import noms_fr
 from ygo import rarity as R
 from ygo.fr import BANLIST, tr
 from ygo.importer import CORRECTIONS_PATH, normalize
-from ygo.ui.core import card_img, catalog, con, refresh, search_any, search_box
+from ygo.ui.card_sheet import card_img
+from ygo.ui.core import catalog, con, refresh, search_any, search_box
 from ygo.ui.style import page_header
 
 

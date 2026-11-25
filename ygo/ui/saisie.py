@@ -7,7 +7,9 @@ from ygo import importer
 from ygo import install
 from ygo import rarity as R
 from ygo import stock
-from ygo.ui.core import card_img, card_search, catalog, con
+from ygo.ui.card_search import card_search
+from ygo.ui.card_sheet import card_img
+from ygo.ui.core import catalog, con
 from ygo.ui.style import page_header
 
 UNKNOWN = "unknown"

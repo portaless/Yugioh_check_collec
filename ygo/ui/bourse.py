@@ -9,7 +9,8 @@ import streamlit as st
 from ygo import bourse as B
 from ygo import rarity as R
 from ygo.importer import normalize
-from ygo.ui.core import catalog, con, gallery, open_card, search_box
+from ygo.ui.card_sheet import gallery, open_card
+from ygo.ui.core import catalog, con, search_box
 from ygo.ui.style import GOLD, page_header
 
 PERIODS = {"7 jours": 7, "30 jours": 30, "Tout": None}

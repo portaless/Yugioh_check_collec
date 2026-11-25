@@ -9,24 +9,9 @@ from ygo import importer
 from ygo import plan as P
 from ygo.db import is_extra
 from ygo.fr import BANLIST, ZONES, ZONES_REV, tr
-from ygo.ui.core import (
-    card_img,
-    cards_gallery,
-    catalog,
-    con,
-    deck_counts,
-    deck_kpis,
-    deck_plan,
-    plan_selector,
-    deck_selector,
-    deck_signature,
-    effect_text,
-    gallery,
-    open_card,
-    search_any,
-    search_box,
-    show_issues,
-)
+from ygo.ui.card_sheet import card_img, cards_gallery, effect_text, gallery, open_card
+from ygo.ui.core import catalog, con, search_any, search_box
+from ygo.ui.decks import deck_counts, deck_kpis, deck_plan, deck_selector, deck_signature, plan_selector, show_issues
 from ygo.ui.style import page_header, status_tile
 
 

@@ -8,7 +8,9 @@ import streamlit as st
 from ygo import analysis as A
 from ygo import meta
 from ygo import simulation as S
-from ygo.ui.core import cards_gallery, con, deck_plan, deck_signature, plan_name, tone_for
+from ygo.ui.card_sheet import cards_gallery
+from ygo.ui.core import con
+from ygo.ui.decks import deck_plan, deck_signature, plan_name, tone_for
 from ygo.ui.style import TONES, page_header, pill, status_tile
 
 

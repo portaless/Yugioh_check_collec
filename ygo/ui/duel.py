@@ -11,7 +11,9 @@ from ygo import builds
 from ygo import duel as D
 from ygo import simulation as S
 from ygo.fr import ZONES
-from ygo.ui.core import cards_gallery, con, deck_counts, deck_kpis, deck_plan, deck_signature, plan_selector
+from ygo.ui.card_sheet import cards_gallery
+from ygo.ui.core import con
+from ygo.ui.decks import deck_counts, deck_kpis, deck_plan, deck_signature, plan_selector
 from ygo.ui.duel_board import duel_board
 from ygo.ui.style import TONES, page_header, status_tile
 

@@ -13,7 +13,9 @@ from ygo import plan as P
 from ygo import simulation as S
 from ygo.db import is_extra
 from ygo.fr import ARCHETYPES, tr
-from ygo.ui.core import cards_gallery, catalog, con, plan_name
+from ygo.ui.card_sheet import cards_gallery
+from ygo.ui.core import catalog, con
+from ygo.ui.decks import plan_name
 from ygo.ui.style import TONES, page_header
 
 
