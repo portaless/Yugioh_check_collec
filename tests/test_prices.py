@@ -1,4 +1,5 @@
 from ygo import cardmarket as CM
+from ygo import cardmarket_match as CMM
 from ygo import rarity as R
 
 
@@ -30,29 +31,29 @@ PRINTS = [("CRMS-EN042", "Ultimate Rare"), ("CRMS-EN042", "Ultra Rare")]
 
 
 def test_single_product_is_exact():
-    assert CM._assign(1, [("LC5D-EN235", "Rare")], [270405], {}, {}, {}) == [(270405, "exact")]
+    assert CMM._assign(1, [("LC5D-EN235", "Rare")], [270405], {}, {}, {}) == [(270405, "exact")]
 
 
 def test_same_rarity_reprints_share_one_product():
     prints = [("PSV-088", "Common"), ("PSV-E088", "Common"), ("PSV-EN088", "Common")]
-    assert CM._assign(1, prints, [7], {}, {}, {}) == [(7, "exact")] * 3
+    assert CMM._assign(1, prints, [7], {}, {}, {}) == [(7, "exact")] * 3
 
 
 def test_several_rarities_follow_product_order_when_prices_agree():
-    found = CM._assign(1, PRINTS, [10, 20], {}, {10: 3.3, 20: 14.3}, {})
+    found = CMM._assign(1, PRINTS, [10, 20], {}, {10: 3.3, 20: 14.3}, {})
     assert found == [(20, "deduit"), (10, "deduit")]  # Ultra (plus commune) = premier produit
 
 
 def test_contradicting_prices_are_flagged():
-    found = CM._assign(1, PRINTS, [10, 20], {}, {10: 14.3, 20: 3.3}, {})
+    found = CMM._assign(1, PRINTS, [10, 20], {}, {10: 14.3, 20: 3.3}, {})
     assert {conf for _, conf in found} == {"doute"}
 
 
 def test_cardtrader_and_manual_choice_win():
     ct = {10: {"rarity": "Ultimate Rare", "number": "CRMS-EN042"}, 20: {"rarity": "Ultra Rare", "number": "CRMS-EN042"}}
-    assert CM._assign(1, PRINTS, [10, 20], ct, {}, {}) == [(10, "exact"), (20, "exact")]
+    assert CMM._assign(1, PRINTS, [10, 20], ct, {}, {}) == [(10, "exact"), (20, "exact")]
     choices = {CM.choice_key(1, "CRMS-EN042", "Ultra Rare"): 10}
-    assert CM._assign(1, PRINTS, [10, 20], {}, {}, choices)[1] == (10, "manuel")
+    assert CMM._assign(1, PRINTS, [10, 20], {}, {}, choices)[1] == (10, "manuel")
 
 
 # ----------------------------------------------------------------- exemplaires possédés
@@ -75,6 +76,6 @@ def test_printing_missing_from_catalog_comes_from_cardtrader():
                 {"idProduct": 8, "idExpansion": 6, "name": "Dark Magician"}]  # extension inconnue du catalogue
     ct = {9: {"rarity": "Quarter Century Secret Rare", "number": "001", "code": "TN23", "expansion": "Tin 23"},
           8: {"rarity": "Ultra Rare", "number": "002", "code": "XX", "expansion": "Promo"}}
-    assert CM._missing_prints(cards, products, ct, {5}, set()) == [
+    assert CMM._missing_prints(cards, products, ct, {5}, set()) == [
         (1, "Tin 23", "TN23-EN001", "Quarter Century Secret Rare", 5, 9, "exact")]
-    assert CM._missing_prints(cards, products, ct, {5}, {9}) == []  # déjà attribué
+    assert CMM._missing_prints(cards, products, ct, {5}, {9}) == []  # déjà attribué

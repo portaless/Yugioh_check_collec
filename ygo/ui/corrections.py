@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from ygo import cardmarket as CM
+from ygo import cardmarket_match as CMM
 from ygo import importer
 from ygo import rarity as R
 from ygo.importer import normalize
@@ -112,7 +113,7 @@ def version_corrections():
         rows = [r for r in rows if r["confidence"] == "doute"]
     st.caption(f"{len(rows)} impression(s) à vérifier.")
     for r in rows[:60]:
-        cands = CM.candidates(con, r["card_id"], r["set_name"])
+        cands = CMM.candidates(con, r["card_id"], r["set_name"])
         mark = "?" if r["confidence"] == "doute" else "≈"
         with st.container(border=True):
             st.markdown(f"**{r['nom']}** — {r['set_name']} ({CM.french_code(r['set_code'])}), **{R.label(r['rarity'])}** {mark}  ·  "

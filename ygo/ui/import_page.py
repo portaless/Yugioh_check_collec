@@ -8,6 +8,7 @@ import streamlit as st
 from ygo import bourse
 from ygo import builds
 from ygo import cardmarket as CM
+from ygo import cardmarket_match as CMM
 from ygo import cardtrader
 from ygo import completer
 from ygo import engine_data
@@ -88,14 +89,14 @@ def page_import():
         with st.spinner("Réimport de ta collection…"):
             importer.import_excel(con)
             if (CM.CM_DIR / "products.json").exists():
-                CM.build(con, log=lambda _: None)
+                CMM.build(con, log=lambda _: None)
         st.success(f"{n} cartes dans le catalogue.")
     if c3.button("Mettre à jour les prix Cardmarket"):
         with st.spinner("Téléchargement des prix Cardmarket…"):
             if cardtrader.token():
                 cardtrader.download(log=lambda _: None)
             CM.download(force=True)
-            stats = CM.build(con, log=lambda _: None)
+            stats = CMM.build(con, log=lambda _: None)
             bourse.record_current(con)
         st.success("Prix à jour : " + ", ".join(f"{v} {k}" for k, v in sorted(stats.items())) + " (toutes cartes).")
     if c4.button("Recréer la proposition de build"):

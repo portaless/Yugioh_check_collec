@@ -15,7 +15,7 @@ import sys
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 
-from . import builds, cardmarket, engine_data, importer, meta
+from . import builds, cardmarket, cardmarket_match, engine_data, importer, meta
 from .db import DATA_DIR, PERSONAL_DIR, ROOT, USER_DIR, connect
 
 DECKS_PATH = USER_DIR / "decks.json"
@@ -121,7 +121,7 @@ def install(con, log=print) -> None:
     meta.download()
     log(3, STEPS[3])
     cardmarket.download()
-    cardmarket.build(con, log=lambda _: None)
+    cardmarket_match.build(con, log=lambda _: None)
     con.commit()
     log(4, STEPS[4])
     if not engine_data.ready():
