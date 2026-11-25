@@ -1,5 +1,7 @@
 """Briques communes de l'IHM : connexion à la base, catalogue des cartes et recherche par nom."""
 
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
@@ -7,6 +9,14 @@ from ygo import rarity as R
 from ygo.db import connect, is_extra
 from ygo.fr import ARCHETYPES, ATTRIBUTES, BANLIST, RACES, tr
 from ygo.importer import normalize
+
+
+WEB_DIR = Path(__file__).parent / "web"
+
+
+def web(name: str) -> str:
+    """JavaScript ou CSS d'un composant de l'IHM (ygo/ui/web/)."""
+    return (WEB_DIR / name).read_text(encoding="utf8")
 
 
 @st.cache_resource

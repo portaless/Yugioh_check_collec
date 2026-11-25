@@ -1,7 +1,6 @@
 """Page Duel contre la méta : ton deck contre une liste de tournoi jouée par un bot, arbitré par le moteur de
 règles YGOPro (effets, chaînes, combats appliqués automatiquement)."""
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import streamlit as st
 
@@ -10,12 +9,12 @@ from ygo import engine_data
 from ygo import meta
 from ygo import playtest as T
 from ygo.images import thumb_src
-from ygo.ui.core import con
+from ygo.ui.core import con, web
 from ygo.ui.style import page_header
 
-HERE = Path(__file__).parent
-DUEL = st.components.v2.component("duel_meta", css=(HERE / "duel_meta.css").read_text(encoding="utf8"),
-                                  js=(HERE / "duel_meta.js").read_text(encoding="utf8"))
+PARTS = ("duel_meta.js", "duel_meta_board.js", "duel_meta_dialogs.js", "duel_meta_input.js")
+# le plateau est découpé en plusieurs fichiers, assemblés en un seul module pour le composant
+DUEL = st.components.v2.component("duel_meta", css=web("duel_meta.css"), js="\n".join(web(f) for f in PARTS))
 
 
 @st.cache_data(show_spinner=False)

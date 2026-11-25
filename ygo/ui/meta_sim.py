@@ -9,7 +9,7 @@ from ygo import analysis as A
 from ygo import meta
 from ygo import simulation as S
 from ygo.ui.card_sheet import cards_gallery
-from ygo.ui.core import con
+from ygo.ui.core import con, web
 from ygo.ui.decks import deck_plan, deck_signature, plan_name, tone_for
 from ygo.ui.style import TONES, page_header, pill, status_tile
 
@@ -26,36 +26,7 @@ def cached_matchups(deck_id: int, signature: tuple, opp_lists: tuple) -> list[di
 
 
 # Matrice des builds : tableau HTML ; un clic droit sur le nom d'un deck le renvoie à Python
-MATRIX = st.components.v2.component(
-    "meta_matrix",
-    css="""
-    .wrap { overflow-x: auto; border: 1px solid #2A3050; border-radius: .7rem; }
-    table { border-collapse: collapse; width: 100%; font-size: .9rem; color: #E9E6DD; }
-    th { background: #1E2340; font-weight: 600; text-align: right; padding: .5rem .7rem; white-space: nowrap; }
-    th:first-child { text-align: left; }
-    td { text-align: right; padding: .45rem .7rem; font-weight: 600; border-top: 1px solid #2A3050; }
-    td.deck { text-align: left; font-weight: 500; color: #E9E6DD; background: #171B30; cursor: context-menu;
-              white-space: nowrap; }
-    td.deck:hover { color: #E3B341; text-decoration: underline dotted; }
-    td.deck.on { color: #E3B341; box-shadow: inset 3px 0 0 #E3B341; }
-    """,
-    js="""
-    export default function(component) {
-        const { data, setTriggerValue, parentElement } = component;
-        let root = parentElement.querySelector(".wrap");
-        if (!root) { root = document.createElement("div"); root.className = "wrap"; parentElement.appendChild(root); }
-        root.innerHTML = data;
-        root.querySelectorAll("td.deck").forEach((cell) => {
-            cell.oncontextmenu = (e) => {
-                e.preventDefault();
-                root.querySelectorAll("td.deck.on").forEach((c) => c.classList.remove("on"));
-                cell.classList.add("on");
-                setTriggerValue("deck", cell.dataset.deck);
-            };
-        });
-    }
-    """,
-)
+MATRIX = st.components.v2.component("meta_matrix", css=web("meta_matrix.css"), js=web("meta_matrix.js"))
 
 
 def matrix_html(ranked: list[str], matrix: dict, weighted: dict, arch) -> str:

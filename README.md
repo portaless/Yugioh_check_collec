@@ -45,7 +45,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 | | Bourse | Évolution du prix de tes cartes et de ta collection depuis le 1er novembre 2026, relevé Cardmarket quotidien |
 | Analyse | Analyse | Composition et probabilités d'un deck |
 | | Duel de decks | Deux decks face à face : KPI, duel simulé sur un plateau (rejoué étape par étape), leviers |
-| | Duel contre la méta | Ton deck contre une liste de tournoi jouée par un bot, arbitré par le moteur de règles YGOPro : effets, chaînes et combats appliqués automatiquement, seules les actions légales sont proposées (`engine/`, `ygo/ui/duel_meta.js`) |
+| | Duel contre la méta | Ton deck contre une liste de tournoi jouée par un bot, arbitré par le moteur de règles YGOPro : effets, chaînes et combats appliqués automatiquement, seules les actions légales sont proposées (`engine/`, `ygo/ui/duel_meta.py`) |
 | | Simulation méta | Tes builds contre les decks qui gagnent en tournoi |
 | | Générateur de build | Meilleur deck d'un archétype avec ton stock : recuit simulé sous contraintes de stock et de banlist |
 | Données | Corrections / Import | Reconnaissance des noms, version Cardmarket des raretés incertaines, réimport, prix, banlist, méthode |
@@ -56,9 +56,14 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 - `ygo/` : le cœur, sans interface — `db.py` (schéma), `importer.py` (Excel + catalogue), `analysis.py` (rôles, légalité,
   probabilités), `stock.py` (saisie de la collection depuis l'IHM), `plan.py` (moteur d'un deck et rôle des cartes, lus dans leur texte), `simulation.py` (mains et matchups), `optimizer.py` (générateur), `meta.py` (decks de tournoi),
   `fr.py` (traductions), `builds.py` (proposition manuelle `mekk_opti`), `rarity.py` (raretés),
-  `cardmarket.py` (prix par impression), `cardtrader.py` (rareté exacte des produits Cardmarket),
-  `bourse.py` (historique des prix).
-- `ygo/ui/` : l'interface — `core.py` (catalogue, galerie, visionneuse), `style.py` (direction artistique), une page par module.
+  `cardmarket.py` (fichiers et codes Cardmarket), `cardmarket_match.py` (rapprochement des produits et prix par impression),
+  `cardtrader.py` (rareté exacte des produits Cardmarket), `bourse.py` (historique des prix), `duel.py` (rejeu simulé),
+  `playtest.py` et `engine_data.py` (duel contre la méta et données du moteur de règles).
+- `ygo/ui/` : l'interface — une page par module ; briques communes : `core.py` (connexion, catalogue, recherche),
+  `card_sheet.py` (fiche de carte, galeries), `decks.py` (choix et KPI des decks), `card_search.py` (recherche illustrée),
+  `style.py` (direction artistique). Le JavaScript et le CSS des composants sont dans `ygo/ui/web/`.
+- `engine/src/` : le moteur de règles du duel côté navigateur — `game.js` (la partie), `questions.js` (questions
+  du moteur pour l'interface), `bot.js` (l'adversaire), `loader.js`, `texts.js`, `constants.js`.
 - `ygo/viewer.html` : visionneuse de cartes exécutée dans le navigateur.
 - `.streamlit/config.toml` : thème (bleu nuit et or, Cinzel / Inter).
 - `tests/` : tests unitaires sur une base autonome + rendu de chaque page.

@@ -1,7 +1,6 @@
 """Analyse de deck : légalité, stock, rôles des cartes, probabilités d'ouverture, suggestions."""
 from math import comb
 
-from .db import is_extra
 
 BAN_LIMIT = {"Forbidden": 0, "Banned": 0, "Limited": 1, "Semi-Limited": 2}
 

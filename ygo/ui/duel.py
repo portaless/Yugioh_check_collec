@@ -166,7 +166,7 @@ Ce modèle ne joue pas les combos en entier : il mesure la régularité des main
     game = D.play(cards_a, cards_b, (name_a, name_b), (plans[name_a], plans[name_b]), seed, a_first)
     duel_board(game, name_a if a_first else name_b, key=f"{name_a}|{name_b}|{seed}|{a_first}")
     with st.expander("Règles du duel simulé"):
-        st.markdown(f"""
+        st.markdown("""
 - **Tour 1** : le joueur qui commence (5 cartes, sans pioche) joue ses starters un par un. L'adversaire répond avec
   ses interruptions depuis la main (Floraison de Cendres, Nibiru…) : chacune coupe la ligne d'un starter.
   Le premier starter qui passe déroule le moteur : les cartes du moteur sortent du deck, puis un monstre de

@@ -1,0 +1,9 @@
+.wrap { overflow-x: auto; border: 1px solid #2A3050; border-radius: .7rem; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; color: #E9E6DD; }
+th { background: #1E2340; font-weight: 600; text-align: right; padding: .5rem .7rem; white-space: nowrap; }
+th:first-child { text-align: left; }
+td { text-align: right; padding: .45rem .7rem; font-weight: 600; border-top: 1px solid #2A3050; }
+td.deck { text-align: left; font-weight: 500; color: #E9E6DD; background: #171B30; cursor: context-menu;
+          white-space: nowrap; }
+td.deck:hover { color: #E3B341; text-decoration: underline dotted; }
+td.deck.on { color: #E3B341; box-shadow: inset 3px 0 0 #E3B341; }

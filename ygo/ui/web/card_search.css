@@ -1,0 +1,15 @@
+.cs { position: relative; font-family: inherit; }
+.cs input { width: 100%; box-sizing: border-box; padding: .6rem .8rem; border-radius: .6rem; font-size: 1rem;
+            background: #171B30; color: #E9E6DD; border: 1px solid #2A3050; outline: none; }
+.cs input:focus { border-color: #E3B341; box-shadow: 0 0 0 1px #E3B341; }
+.cs .list { margin-bottom: .5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: .6rem; }
+.cs .item { cursor: pointer; border-radius: .5rem; padding: .35rem; border: 1px solid transparent;
+            background: #11152A; transition: border-color .12s, transform .12s; }
+.cs .item:hover, .cs .item.sel { border-color: #E3B341; transform: translateY(-2px); }
+.cs .item img { width: 100%; border-radius: 4px; display: block; aspect-ratio: 168 / 246; object-fit: cover;
+                background: #0D1020; }
+.cs .name { font-size: .8rem; color: #E9E6DD; margin-top: .3rem; line-height: 1.25; }
+.cs .sub { font-size: .72rem; color: #A8A49A; }
+.cs .owned { color: #E3B341; }
+.cs .empty { color: #A8A49A; font-size: .85rem; padding: .3rem .1rem; }
