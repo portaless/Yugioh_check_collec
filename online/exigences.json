@@ -273,7 +273,11 @@
       "titre": "Code court et partagé",
       "description": "Le moteur (engine/src) et le plateau (ygo/ui/web/duel_meta_*) sont partagés entre le local et l'en ligne, sans copie.",
       "priorite": "P1",
-      "criteres": ["Fichiers de moins de 300 lignes, pas de JavaScript ni de CSS dans des chaînes Python."],
+      "criteres": [
+        "Aucun fichier ne dépasse 1000 lignes (limite absolue) ; cible : moins de 300 lignes, une responsabilité par fichier.",
+        "Architecture en couches séparées : moteur (engine/src), serveur (online/server : HTTP, stockage, salons, duel), client web (online/web) et plateau partagé (ygo/ui/web).",
+        "Pas de JavaScript ni de CSS dans des chaînes Python."
+      ],
       "statut": "a_faire"
     },
     {
