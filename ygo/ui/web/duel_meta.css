@@ -161,3 +161,6 @@
 .dm .effs .eff span { font-size: .8rem; line-height: 1.35; color: var(--ink); }
 .dm .effs .eff:hover { border-color: var(--gold); background: #222a47; }
 .dm .effbox .ms { max-height: 9rem; overflow-y: auto; white-space: pre-line; }
+
+/* texte de l'effet dans la question « Activer l'effet de… ? » */
+.dm .yn > div { white-space: pre-line; line-height: 1.4; max-height: 16rem; overflow-y: auto; }

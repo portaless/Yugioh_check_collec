@@ -24796,6 +24796,14 @@ function repos(game, c) {
   if (pos & POS.FU_ATK) return "Passer en Position de D\xE9fense";
   return "Changer de position";
 }
+function triggerText(T, m) {
+  const found = T.effectText(m.desc, m.code);
+  if (found) return found;
+  const list = T.effects(m.code);
+  const triggers = list.filter((p) => /^(Si|Lorsque|Quand|Durant) [^:]*:/.test(p));
+  const self2 = triggers.filter((p) => /^(Si|Lorsque|Quand) cette carte/.test(p));
+  return triggers.length === 1 ? triggers[0] : self2.length === 1 ? self2[0] : list.join("\n\n");
+}
 function question(game, m) {
   const T = game.T;
   const kind = m.constructor.name.replace("YGOProMsg", "");
@@ -24852,7 +24860,7 @@ function question(game, m) {
       return {
         kind: "yesno",
         title: `Activer l'effet de \xAB ${T.name(m.code)} \xBB ?`,
-        text: m.desc && !T.desc(m.desc, m.code).includes("%ls") ? T.desc(m.desc, m.code) : "",
+        text: triggerText(T, m),
         code: m.code,
         yes: m.prepareResponse(true),
         no: m.prepareResponse(false)

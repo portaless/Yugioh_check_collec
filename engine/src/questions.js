@@ -19,6 +19,17 @@ function repos(game, c) {
     return "Changer de position";
 }
 
+// Effet déclenché proposé (« Activer l'effet de… ? ») : le paragraphe de l'effet ; le moteur envoie souvent un
+// message générique, on prend alors le seul effet déclenché de la carte (« Si… : » / « Lorsque… : »), sinon tout le texte.
+function triggerText(T, m) {
+    const found = T.effectText(m.desc, m.code);
+    if (found) return found;
+    const list = T.effects(m.code);
+    const triggers = list.filter((p) => /^(Si|Lorsque|Quand|Durant) [^:]*:/.test(p));
+    const self = triggers.filter((p) => /^(Si|Lorsque|Quand) cette carte/.test(p));   // déclenché par la carte elle-même
+    return triggers.length === 1 ? triggers[0] : self.length === 1 ? self[0] : list.join("\n\n");
+}
+
 // Traduit une question du moteur en question pour l'interface ; la réponse est préparée ici.
 export function question(game, m) {
     const T = game.T;
@@ -64,7 +75,7 @@ export function question(game, m) {
             };
         }
         case "SelectEffectYn":
-            return { kind: "yesno", title: `Activer l'effet de « ${T.name(m.code)} » ?`, text: m.desc && !T.desc(m.desc, m.code).includes("%ls") ? T.desc(m.desc, m.code) : "", code: m.code,
+            return { kind: "yesno", title: `Activer l'effet de « ${T.name(m.code)} » ?`, text: triggerText(T, m), code: m.code,
                 yes: m.prepareResponse(true), no: m.prepareResponse(false) };
         case "SelectYesNo":
             return { kind: "yesno", title: T.desc(m.desc).replace(/[%ls]/g, "cette carte"), text: "", yes: m.prepareResponse(true), no: m.prepareResponse(false) };
