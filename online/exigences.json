@@ -1,0 +1,332 @@
+{
+  "projet": "Ma collection Yu-Gi-Oh! en ligne",
+  "version": "0.1",
+  "date": "2026-11-26",
+  "branche": "online",
+  "objectif": "Partager des collections avec le public ou un public restreint, et jouer des duels de deck contre des adversaires en ligne (au hasard ou choisis), chacun avec son deck personnel, arbitrés par le moteur de règles YGOPro.",
+  "legende": {
+    "priorite": {
+      "P1": "indispensable à la première version jouable",
+      "P2": "important, juste après",
+      "P3": "confort, plus tard"
+    },
+    "statut": ["a_faire", "en_cours", "fait", "abandonne"]
+  },
+  "decisions": [
+    {
+      "id": "D1",
+      "sujet": "Architecture",
+      "choix": "Serveur Node.js et appli web dédiée",
+      "raison": "Le moteur de règles tourne déjà sous Node : le serveur arbitre chaque duel, aucun joueur ne peut tricher, et la partie continue même si un navigateur se recharge. L'appli Streamlit reste l'outil local d'analyse et publie la collection et les decks."
+    },
+    {
+      "id": "D2",
+      "sujet": "Hébergement",
+      "choix": "Sur le PC de l'utilisateur d'abord",
+      "raison": "Développer et tester en local (deux navigateurs), choisir l'hébergeur ensuite (voir EX-H1)."
+    },
+    {
+      "id": "D3",
+      "sujet": "Identité",
+      "choix": "Pseudo et clé secrète générée automatiquement, sans mot de passe ; duels rejoints par code",
+      "raison": "Pas de mot de passe à gérer. La clé, gardée par le navigateur et par l'appli locale, prouve qui publie une collection et qui est « ami »."
+    },
+    {
+      "id": "D4",
+      "sujet": "Visibilité des collections",
+      "choix": "Publique, amis (joueurs choisis par leur pseudo) ou privée",
+      "raison": "Choix de l'utilisateur."
+    },
+    {
+      "id": "D5",
+      "sujet": "Dépendances",
+      "choix": "Aucune dépendance serveur en plus du moteur : http et node:sqlite de Node, flux SSE plutôt que WebSocket",
+      "raison": "Rien à installer de plus, pas de compilation native sous Windows."
+    }
+  ],
+  "exigences": [
+    {
+      "id": "EX-I1",
+      "domaine": "Identité",
+      "titre": "Créer son identité",
+      "description": "À la première visite, le joueur choisit un pseudo. Le serveur crée une clé secrète, gardée par le navigateur.",
+      "priorite": "P1",
+      "criteres": [
+        "Un pseudo est unique (3 à 24 caractères : lettres, chiffres, tiret, espace).",
+        "La clé n'est jamais affichée dans une URL ni dans le journal du serveur ; le serveur n'en garde qu'une empreinte (hachage).",
+        "Le navigateur retrouve l'identité à la visite suivante."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-I2",
+      "domaine": "Identité",
+      "titre": "Relier l'appli locale à son identité",
+      "description": "L'appli Streamlit reçoit la clé (copiée depuis l'appli web) pour publier au nom du joueur.",
+      "priorite": "P1",
+      "criteres": [
+        "La clé est enregistrée dans data/ (fichier ignoré par git), jamais dans le code.",
+        "Une clé invalide donne un message clair, sans rien publier."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-I3",
+      "domaine": "Identité",
+      "titre": "Récupérer son identité sur un autre appareil",
+      "description": "Exporter et importer la clé (texte à copier) pour utiliser la même identité ailleurs.",
+      "priorite": "P2",
+      "criteres": ["L'import d'une clé valide redonne le même pseudo et les mêmes collections."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-C1",
+      "domaine": "Collections",
+      "titre": "Publier sa collection",
+      "description": "Depuis l'appli locale, un bouton envoie la collection (cartes, quantités, raretés, codes, prix connus) au serveur.",
+      "priorite": "P1",
+      "criteres": [
+        "La publication remplace la version précédente et affiche sa date.",
+        "Les zones de stock (feuilles de l'Excel) sont publiées seulement si le joueur le coche."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-C2",
+      "domaine": "Collections",
+      "titre": "Visibilité : publique, amis ou privée",
+      "description": "Le propriétaire choisit qui voit sa collection.",
+      "priorite": "P1",
+      "criteres": [
+        "Publique : visible par tout le monde, avec ou sans identité, et listée dans l'annuaire (EX-C4).",
+        "Amis : visible seulement par les pseudos ajoutés par le propriétaire.",
+        "Privée : visible seulement par le propriétaire.",
+        "Un visiteur non autorisé reçoit « collection introuvable », sans savoir si elle existe."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-C3",
+      "domaine": "Collections",
+      "titre": "Gérer ses amis",
+      "description": "Ajouter ou retirer des pseudos autorisés à voir les collections « amis ».",
+      "priorite": "P1",
+      "criteres": ["Le retrait d'un ami lui coupe l'accès immédiatement."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-C4",
+      "domaine": "Collections",
+      "titre": "Consulter une collection",
+      "description": "Page d'une collection : galerie des cartes avec recherche, filtres (type, rareté), nombre d'exemplaires et valeur totale.",
+      "priorite": "P1",
+      "criteres": [
+        "Lien direct /c/<pseudo>.",
+        "Annuaire des collections publiques.",
+        "Textes en français, dans la DA bleu nuit et or, sans emoji."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-C5",
+      "domaine": "Collections",
+      "titre": "Comparer avec ma collection",
+      "description": "Sur la collection d'un autre, voir les cartes qu'il a et qui me manquent (pour échanger).",
+      "priorite": "P3",
+      "criteres": ["Filtre « me manque » basé sur ma propre collection publiée."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-K1",
+      "domaine": "Decks",
+      "titre": "Publier ses decks",
+      "description": "L'appli locale publie les decks du Constructeur et les builds enregistrés du Générateur.",
+      "priorite": "P1",
+      "criteres": [
+        "Seuls les decks d'au moins 40 cartes en Main Deck sont jouables en ligne.",
+        "Un deck publié peut être privé (sert seulement à jouer) ou visible avec la collection."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-K2",
+      "domaine": "Decks",
+      "titre": "Importer un deck au format .ydk",
+      "description": "Dans l'appli web, coller ou charger un fichier .ydk (format standard des simulateurs) pour jouer sans l'appli locale.",
+      "priorite": "P2",
+      "criteres": ["Les cartes inconnues du moteur sont signalées et le deck est refusé s'il devient illégal."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-K3",
+      "domaine": "Decks",
+      "titre": "Contrôle de légalité",
+      "description": "Le serveur vérifie le deck avant le duel : 40 à 60 cartes en Main Deck, 15 maximum en Extra Deck, 3 exemplaires maximum par carte.",
+      "priorite": "P2",
+      "criteres": ["Option de liste des cartes interdites et limitées en vigueur (P3)."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D1",
+      "domaine": "Duels",
+      "titre": "Duel privé par code",
+      "description": "Un joueur crée un duel avec son deck et reçoit un code de 6 caractères ; l'adversaire le rejoint avec ce code et son propre deck.",
+      "priorite": "P1",
+      "criteres": [
+        "Le code expire si personne ne le rejoint dans les 30 minutes.",
+        "Un code déjà utilisé ne permet pas à un troisième joueur d'entrer (sauf comme spectateur, EX-D7)."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D2",
+      "domaine": "Duels",
+      "titre": "Duel contre un adversaire au hasard",
+      "description": "File d'attente : le joueur est apparié avec le premier autre joueur en attente.",
+      "priorite": "P1",
+      "criteres": [
+        "Le joueur voit qu'il attend et peut annuler.",
+        "Deux joueurs en attente sont appariés en moins de 2 secondes."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D3",
+      "domaine": "Duels",
+      "titre": "Défier un joueur précis",
+      "description": "Inviter un pseudo (ami ou non) ; il voit l'invitation et l'accepte ou la refuse.",
+      "priorite": "P2",
+      "criteres": ["Une invitation non acceptée expire au bout de 5 minutes."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D4",
+      "domaine": "Duels",
+      "titre": "Arbitrage par le serveur",
+      "description": "Le moteur YGOPro tourne sur le serveur ; chaque joueur ne reçoit que ce qu'il a le droit de voir et ne peut envoyer que des réponses légales.",
+      "priorite": "P1",
+      "criteres": [
+        "La main et les cartes face verso adverses ne sont jamais envoyées au navigateur.",
+        "Une réponse illégale ou envoyée hors de son tour est refusée.",
+        "Mélange et pile ou face tirés au hasard par le serveur."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D5",
+      "domaine": "Duels",
+      "titre": "Même plateau et mêmes interactions qu'en local",
+      "description": "Le plateau du duel local est réutilisé : clic direct sur les cartes, effets détaillés, réponses en chaîne, zones colorées, barre des phases, plein écran, Échap.",
+      "priorite": "P1",
+      "criteres": [
+        "Le journal est écrit du point de vue de chaque joueur (« Tu invoques… » / « <pseudo> invoque… »).",
+        "« Annuler mon action » n'existe pas en ligne (l'adversaire a vu l'action) ; « Revenir en arrière » reste possible tant que l'action n'est pas transmise."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D6",
+      "domaine": "Duels",
+      "titre": "Déconnexion et abandon",
+      "description": "Un joueur qui recharge la page retrouve le duel en cours ; un joueur absent trop longtemps perd.",
+      "priorite": "P2",
+      "criteres": [
+        "Reconnexion sans perte d'état.",
+        "Abandon volontaire possible à tout moment.",
+        "Défaite après 3 minutes sans réponse quand c'est à lui d'agir."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D7",
+      "domaine": "Duels",
+      "titre": "Spectateurs",
+      "description": "Suivre un duel en cours sans voir les mains.",
+      "priorite": "P3",
+      "criteres": ["Le spectateur ne voit que les informations publiques."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-D8",
+      "domaine": "Duels",
+      "titre": "Historique des duels",
+      "description": "Résultats des duels joués (adversaire, decks, vainqueur, date).",
+      "priorite": "P3",
+      "criteres": ["Visible par les deux joueurs du duel."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-T1",
+      "domaine": "Technique",
+      "titre": "Lancement local",
+      "description": "Une commande démarre le serveur ; deux navigateurs sur le même PC peuvent jouer l'un contre l'autre.",
+      "priorite": "P1",
+      "criteres": [
+        "Une seule commande, documentée dans le README.",
+        "Le serveur réutilise les données du moteur déjà téléchargées (static/engine/data)."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-T2",
+      "domaine": "Technique",
+      "titre": "Code court et partagé",
+      "description": "Le moteur (engine/src) et le plateau (ygo/ui/web/duel_meta_*) sont partagés entre le local et l'en ligne, sans copie.",
+      "priorite": "P1",
+      "criteres": ["Fichiers de moins de 300 lignes, pas de JavaScript ni de CSS dans des chaînes Python."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-T3",
+      "domaine": "Technique",
+      "titre": "Sécurité de base",
+      "description": "Limiter les abus avant toute mise en ligne publique.",
+      "priorite": "P2",
+      "criteres": [
+        "Taille des requêtes limitée, nombre de duels et de publications par identité limité.",
+        "Pseudos et noms de decks échappés à l'affichage.",
+        "HTTPS obligatoire dès que le serveur est accessible depuis internet."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-T4",
+      "domaine": "Technique",
+      "titre": "Tests",
+      "description": "Tests automatiques du serveur : identité, visibilité, appariement et un duel complet joué par deux bots via l'API.",
+      "priorite": "P2",
+      "criteres": ["Lancés par une commande, sans navigateur."],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-H1",
+      "domaine": "Hébergement",
+      "titre": "Mise en ligne",
+      "description": "Choisir et configurer un hébergeur (Render, Fly.io, VPS…) une fois la version locale validée.",
+      "priorite": "P3",
+      "criteres": [
+        "Base de données sauvegardée.",
+        "Le compte chez l'hébergeur est créé par l'utilisateur lui-même."
+      ],
+      "statut": "a_faire"
+    },
+    {
+      "id": "EX-L1",
+      "domaine": "Licences",
+      "titre": "Respect des licences",
+      "description": "Les scripts des cartes (ygopro-scripts) sont sous GPL-2.0 : un serveur public qui les utilise doit le mentionner et donner accès à leur source.",
+      "priorite": "P2",
+      "criteres": [
+        "Page « À propos » avec les licences et les liens vers les sources.",
+        "Illustrations chargées depuis YGOPRODeck, sans les rediffuser."
+      ],
+      "statut": "a_faire"
+    }
+  ],
+  "jalons": [
+    {"id": "J1", "titre": "Duel en ligne jouable en local", "exigences": ["EX-I1", "EX-D1", "EX-D2", "EX-D4", "EX-D5", "EX-T1", "EX-T2"]},
+    {"id": "J2", "titre": "Collections et decks partagés", "exigences": ["EX-I2", "EX-C1", "EX-C2", "EX-C3", "EX-C4", "EX-K1"]},
+    {"id": "J3", "titre": "Confort et robustesse", "exigences": ["EX-I3", "EX-K2", "EX-K3", "EX-D3", "EX-D6", "EX-T3", "EX-T4", "EX-L1"]},
+    {"id": "J4", "titre": "Mise en ligne publique", "exigences": ["EX-H1", "EX-C5", "EX-D7", "EX-D8"]}
+  ]
+}
