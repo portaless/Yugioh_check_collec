@@ -1,0 +1,32 @@
+/* Client en ligne : pages d'accueil, dans la DA de l'appli (bleu nuit et or). Le plateau a son propre style
+   (ygo/ui/web/duel_meta.css), partagé avec le duel local. */
+:root { --gold: #E3B341; --ink: #E9E6DD; --mute: #A8A49A; --line: #2A3050; --panel: #171B30; --deep: #0D1020; --bad: #E8776D; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--deep); color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; }
+header { display: flex; align-items: center; justify-content: space-between; padding: .9rem 1.4rem; border-bottom: 1px solid var(--line); }
+.brand { color: var(--gold); text-decoration: none; font: 700 1.25rem "Playfair Display", serif; }
+.brand span { color: var(--mute); font: 600 .75rem Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; margin-left: .6rem; }
+main { max-width: 1500px; margin: 0 auto; padding: 1.4rem 1rem; }
+footer { text-align: center; font-size: .75rem; padding: 1.5rem 1rem; }
+h2 { font: 700 1.2rem "Playfair Display", serif; color: var(--gold); margin: 0 0 .5rem; }
+.mute { color: var(--mute); }
+.err { color: var(--bad); min-height: 1.5em; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: .8rem; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+.narrow { max-width: 520px; margin: 2rem auto; }
+.center { text-align: center; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.grid2 .card { margin: 0; }
+.row { display: flex; gap: .5rem; margin-top: .7rem; }
+label { display: grid; gap: .3rem; color: var(--mute); font-size: .85rem; }
+input, select, textarea { width: 100%; background: var(--deep); color: var(--ink); border: 1px solid var(--line); border-radius: .45rem;
+    padding: .5rem .65rem; font: inherit; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+details { margin-top: .8rem; } summary { cursor: pointer; color: var(--mute); }
+button, .btn { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: .45rem; padding: .5rem 1rem;
+    font: inherit; cursor: pointer; text-decoration: none; display: inline-block; }
+button:hover, .btn:hover { border-color: var(--gold); }
+button.main { background: var(--gold); color: var(--deep); border-color: var(--gold); font-weight: 700; }
+form { display: flex; gap: .5rem; margin-top: .8rem; }
+.code { font: 700 2.6rem/1 "Playfair Display", serif; letter-spacing: .25em; color: var(--gold); margin: .8rem 0; }
+.dm .btn { padding: .3rem .7rem; font-size: .85rem; }
+@media (max-width: 600px) { main { padding: 1rem; } form, .row { flex-direction: column; } }

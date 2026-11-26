@@ -2,12 +2,13 @@
 import { createOcgcoreWrapper, SqljsCardReader, ZipScriptReader } from "koishipro-core.js";
 import initSqlJs from "sql.js/dist/sql-wasm-browser.js";
 
-export async function loadEngine(base) {
-    const get = async (file, type) => {
+// read(fichier, "arrayBuffer" | "text") : téléchargement dans le navigateur, lecture sur disque côté serveur
+export async function loadEngine(base, read = null) {
+    const get = read || (async (file, type) => {
         const r = await fetch(base + file);
         if (!r.ok) throw new Error(`${file} : ${r.status}`);
         return r[type]();
-    };
+    });
     const [wasm, sqlWasm, scripts, cdb, strings] = await Promise.all([
         get("libocgcore.wasm", "arrayBuffer"), get("sql-wasm-browser.wasm", "arrayBuffer"),
         get("data/script.zip", "arrayBuffer"), get("data/cards.cdb", "arrayBuffer"), get("data/strings.conf", "text"),

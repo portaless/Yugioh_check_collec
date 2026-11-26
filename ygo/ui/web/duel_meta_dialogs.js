@@ -118,10 +118,11 @@ function render(root) {
     U.notice = null;   // affiché une fois, jusqu'au prochain affichage
     const phases = phasesHTML(root);
     root.innerHTML = `<div class="top"><div class="status">${status}</div><div class="ctrl">${buttons}`
-        + `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`
+        // en ligne : la main adverse n'est jamais envoyée et une nouvelle partie passe par l'accueil
+        + (root.online ? "" : `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`)
         + (g.undoPoint() ? `<button data-undo="1" title="Rejoue la partie jusqu'à juste avant ta dernière action">Annuler mon action</button>` : "")
         + `<button data-full="1">${document.fullscreenElement === root || root.classList.contains("full") ? "Quitter le plein écran" : "Plein écran"}</button>`
-        + `<button data-again="1">${S.over ? "Rejouer" : "Recommencer"}</button></div></div>`
+        + (root.online ? `<a class="btn" href="/">Accueil</a>` : `<button data-again="1">${S.over ? "Rejouer" : "Recommencer"}</button>`) + `</div></div>`
         + phases + notice + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
         + `<div class="log">${log}</div></div>${viewerHTML(root)}${menu}`;
     if (P && P.kind === "actions") {

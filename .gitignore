@@ -8,3 +8,5 @@ static/cards_small/
 ma_collection/
 static/engine/data/
 engine/node_modules/
+online/server/out.cjs
+online/data/

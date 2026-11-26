@@ -1,6 +1,6 @@
 {
   "projet": "Ma collection Yu-Gi-Oh! en ligne",
-  "version": "0.1",
+  "version": "0.2",
   "date": "2026-11-26",
   "branche": "online",
   "objectif": "Partager des collections avec le public ou un public restreint, et jouer des duels de deck contre des adversaires en ligne (au hasard ou choisis), chacun avec son deck personnel, arbitrés par le moteur de règles YGOPro.",
@@ -10,7 +10,12 @@
       "P2": "important, juste après",
       "P3": "confort, plus tard"
     },
-    "statut": ["a_faire", "en_cours", "fait", "abandonne"]
+    "statut": [
+      "a_faire",
+      "en_cours",
+      "fait",
+      "abandonne"
+    ]
   },
   "decisions": [
     {
@@ -56,7 +61,8 @@
         "La clé n'est jamais affichée dans une URL ni dans le journal du serveur ; le serveur n'en garde qu'une empreinte (hachage).",
         "Le navigateur retrouve l'identité à la visite suivante."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Pseudo unique sans tenir compte de la casse ; clé de 24 octets dans un cookie HttpOnly, empreinte SHA-256 en base (online/server/store.js)."
     },
     {
       "id": "EX-I2",
@@ -76,7 +82,9 @@
       "titre": "Récupérer son identité sur un autre appareil",
       "description": "Exporter et importer la clé (texte à copier) pour utiliser la même identité ailleurs.",
       "priorite": "P2",
-      "criteres": ["L'import d'une clé valide redonne le même pseudo et les mêmes collections."],
+      "criteres": [
+        "L'import d'une clé valide redonne le même pseudo et les mêmes collections."
+      ],
       "statut": "a_faire"
     },
     {
@@ -111,7 +119,9 @@
       "titre": "Gérer ses amis",
       "description": "Ajouter ou retirer des pseudos autorisés à voir les collections « amis ».",
       "priorite": "P1",
-      "criteres": ["Le retrait d'un ami lui coupe l'accès immédiatement."],
+      "criteres": [
+        "Le retrait d'un ami lui coupe l'accès immédiatement."
+      ],
       "statut": "a_faire"
     },
     {
@@ -133,7 +143,9 @@
       "titre": "Comparer avec ma collection",
       "description": "Sur la collection d'un autre, voir les cartes qu'il a et qui me manquent (pour échanger).",
       "priorite": "P3",
-      "criteres": ["Filtre « me manque » basé sur ma propre collection publiée."],
+      "criteres": [
+        "Filtre « me manque » basé sur ma propre collection publiée."
+      ],
       "statut": "a_faire"
     },
     {
@@ -154,8 +166,11 @@
       "titre": "Importer un deck au format .ydk",
       "description": "Dans l'appli web, coller ou charger un fichier .ydk (format standard des simulateurs) pour jouer sans l'appli locale.",
       "priorite": "P2",
-      "criteres": ["Les cartes inconnues du moteur sont signalées et le deck est refusé s'il devient illégal."],
-      "statut": "a_faire"
+      "criteres": [
+        "Les cartes inconnues du moteur sont signalées et le deck est refusé s'il devient illégal."
+      ],
+      "statut": "en_cours",
+      "notes": "Collage d'un .ydk dans l'accueil fait ; chargement d'un fichier à faire."
     },
     {
       "id": "EX-K3",
@@ -163,8 +178,11 @@
       "titre": "Contrôle de légalité",
       "description": "Le serveur vérifie le deck avant le duel : 40 à 60 cartes en Main Deck, 15 maximum en Extra Deck, 3 exemplaires maximum par carte.",
       "priorite": "P2",
-      "criteres": ["Option de liste des cartes interdites et limitées en vigueur (P3)."],
-      "statut": "a_faire"
+      "criteres": [
+        "Option de liste des cartes interdites et limitées en vigueur (P3)."
+      ],
+      "statut": "en_cours",
+      "notes": "40 à 60 cartes, Extra 15 max, 3 exemplaires max, cartes inconnues refusées ; liste des interdites à faire."
     },
     {
       "id": "EX-D1",
@@ -176,7 +194,8 @@
         "Le code expire si personne ne le rejoint dans les 30 minutes.",
         "Un code déjà utilisé ne permet pas à un troisième joueur d'entrer (sauf comme spectateur, EX-D7)."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Code de 6 caractères sans 0/O ni 1/I, expiration 30 min (online/server/rooms.js)."
     },
     {
       "id": "EX-D2",
@@ -188,7 +207,8 @@
         "Le joueur voit qu'il attend et peut annuler.",
         "Deux joueurs en attente sont appariés en moins de 2 secondes."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Appariement mesuré en 0,35 s, annulation possible."
     },
     {
       "id": "EX-D3",
@@ -196,7 +216,9 @@
       "titre": "Défier un joueur précis",
       "description": "Inviter un pseudo (ami ou non) ; il voit l'invitation et l'accepte ou la refuse.",
       "priorite": "P2",
-      "criteres": ["Une invitation non acceptée expire au bout de 5 minutes."],
+      "criteres": [
+        "Une invitation non acceptée expire au bout de 5 minutes."
+      ],
       "statut": "a_faire"
     },
     {
@@ -210,7 +232,8 @@
         "Une réponse illégale ou envoyée hors de son tour est refusée.",
         "Mélange et pile ou face tirés au hasard par le serveur."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Main, Extra Deck et cartes face verso adverses masqués avant envoi ; réponses par jeton, refusées hors tour. Reste à vérifier : les cartes cachées proposées dans une sélection (rare)."
     },
     {
       "id": "EX-D5",
@@ -222,7 +245,8 @@
         "Le journal est écrit du point de vue de chaque joueur (« Tu invoques… » / « <pseudo> invoque… »).",
         "« Annuler mon action » n'existe pas en ligne (l'adversaire a vu l'action) ; « Revenir en arrière » reste possible tant que l'action n'est pas transmise."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Plateau partagé avec le duel local (ygo/ui/web/duel_meta_*.js) ; journal écrit du point de vue de chacun. « Revenir en arrière » n'existe pas en ligne : la question suivante est déjà posée par le serveur."
     },
     {
       "id": "EX-D6",
@@ -243,7 +267,9 @@
       "titre": "Spectateurs",
       "description": "Suivre un duel en cours sans voir les mains.",
       "priorite": "P3",
-      "criteres": ["Le spectateur ne voit que les informations publiques."],
+      "criteres": [
+        "Le spectateur ne voit que les informations publiques."
+      ],
       "statut": "a_faire"
     },
     {
@@ -252,7 +278,9 @@
       "titre": "Historique des duels",
       "description": "Résultats des duels joués (adversaire, decks, vainqueur, date).",
       "priorite": "P3",
-      "criteres": ["Visible par les deux joueurs du duel."],
+      "criteres": [
+        "Visible par les deux joueurs du duel."
+      ],
       "statut": "a_faire"
     },
     {
@@ -265,7 +293,8 @@
         "Une seule commande, documentée dans le README.",
         "Le serveur réutilise les données du moteur déjà téléchargées (static/engine/data)."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "`cd engine && npm run online`, puis http://127.0.0.1:8600 ; deux joueurs sur un PC : un onglet sur localhost, l'autre sur 127.0.0.1."
     },
     {
       "id": "EX-T2",
@@ -278,7 +307,8 @@
         "Architecture en couches séparées : moteur (engine/src), serveur (online/server : HTTP, stockage, salons, duel), client web (online/web) et plateau partagé (ygo/ui/web).",
         "Pas de JavaScript ni de CSS dans des chaînes Python."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Plus gros fichier du serveur : rooms.js (environ 150 lignes)."
     },
     {
       "id": "EX-T3",
@@ -299,7 +329,9 @@
       "titre": "Tests",
       "description": "Tests automatiques du serveur : identité, visibilité, appariement et un duel complet joué par deux bots via l'API.",
       "priorite": "P2",
-      "criteres": ["Lancés par une commande, sans navigateur."],
+      "criteres": [
+        "Lancés par une commande, sans navigateur."
+      ],
       "statut": "a_faire"
     },
     {
@@ -328,9 +360,54 @@
     }
   ],
   "jalons": [
-    {"id": "J1", "titre": "Duel en ligne jouable en local", "exigences": ["EX-I1", "EX-D1", "EX-D2", "EX-D4", "EX-D5", "EX-T1", "EX-T2"]},
-    {"id": "J2", "titre": "Collections et decks partagés", "exigences": ["EX-I2", "EX-C1", "EX-C2", "EX-C3", "EX-C4", "EX-K1"]},
-    {"id": "J3", "titre": "Confort et robustesse", "exigences": ["EX-I3", "EX-K2", "EX-K3", "EX-D3", "EX-D6", "EX-T3", "EX-T4", "EX-L1"]},
-    {"id": "J4", "titre": "Mise en ligne publique", "exigences": ["EX-H1", "EX-C5", "EX-D7", "EX-D8"]}
+    {
+      "id": "J1",
+      "titre": "Duel en ligne jouable en local",
+      "exigences": [
+        "EX-I1",
+        "EX-D1",
+        "EX-D2",
+        "EX-D4",
+        "EX-D5",
+        "EX-T1",
+        "EX-T2"
+      ]
+    },
+    {
+      "id": "J2",
+      "titre": "Collections et decks partagés",
+      "exigences": [
+        "EX-I2",
+        "EX-C1",
+        "EX-C2",
+        "EX-C3",
+        "EX-C4",
+        "EX-K1"
+      ]
+    },
+    {
+      "id": "J3",
+      "titre": "Confort et robustesse",
+      "exigences": [
+        "EX-I3",
+        "EX-K2",
+        "EX-K3",
+        "EX-D3",
+        "EX-D6",
+        "EX-T3",
+        "EX-T4",
+        "EX-L1"
+      ]
+    },
+    {
+      "id": "J4",
+      "titre": "Mise en ligne publique",
+      "exigences": [
+        "EX-H1",
+        "EX-C5",
+        "EX-D7",
+        "EX-D8"
+      ]
+    }
   ]
 }
