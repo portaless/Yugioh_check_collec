@@ -180,3 +180,14 @@
 .dm .phases button.ph.go:hover { background: rgba(227,179,65,.15); }
 .dm .back { border-color: rgba(143,166,214,.6); color: #c9d4ee; }
 .dm .banner .back { margin-left: .6rem; padding: .1rem .6rem; font-size: .78rem; }
+
+/* zones à choisir : passent devant la teinte du type de zone */
+.dm .slot.pick { border: 2px solid var(--gold); background: rgba(227,179,65,.22); cursor: pointer;
+                 animation: dm-pulse 1.4s ease-in-out infinite; }
+.dm .slot.picked { background: rgba(227,179,65,.45); }
+.dm .slot.pick:empty::before { color: var(--gold); content: "Choisir"; }
+
+/* carte sans illustration (jeton…) : son nom sur fond de carte */
+.dm .card .nm { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                text-align: center; padding: .25rem; font-size: .6rem; line-height: 1.2; color: var(--ink);
+                background: linear-gradient(160deg, #2b3254, #161a2e); border: 1px solid rgba(227,179,65,.45); border-radius: .3rem; }

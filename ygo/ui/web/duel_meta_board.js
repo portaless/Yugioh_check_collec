@@ -24,7 +24,7 @@ function cardHTML(root, c, opts = {}) {
         ? `<span class="stat">Magie Continue</span>` : "";
     const xyz = c.overlayCards && c.overlayCards.length ? `<span class="ov">${c.overlayCards.length}</span>` : "";
     return `<div class="${cls}" data-key="${hidden ? "" : c.key}" data-code="${hidden ? "" : c.code}" title="${hidden ? "" : esc(i.name)}">`
-        + `${!hidden && i.img ? `<img src="${i.img}" alt="">` : ""}${stat}${asSpell}${xyz}</div>`;
+        + `${hidden ? "" : i.img ? `<img src="${i.img}" alt="">` : `<span class="nm">${esc(i.name)}</span>`}${stat}${asSpell}${xyz}</div>`;
 }
 
 function zoneHTML(root, who, loc, seq, c, foe) {
