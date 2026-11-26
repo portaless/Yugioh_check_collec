@@ -24764,7 +24764,8 @@ var Bot = class {
         return m.prepareResponse(14558127);
       // Floraison de Cendres : nom souvent pertinent
       case "RockPaperScissors":
-        return m.prepareResponse(1 + Math.floor(Math.random() * 3));
+        return m.prepareResponse(1 + this.g.turn % 3);
+      // déterministe (retour arrière)
       default:
         return m.defaultResponse ? m.defaultResponse() : void 0;
     }
@@ -24984,7 +24985,11 @@ function makeTexts(engine, myNames = {}) {
 
 // src/game.js
 var Game = class {
-  constructor(engine, { me, bot, seed, meFirst, names, botName }) {
+  // replay : tes réponses d'une partie précédente, rejouées sans rien te demander (retour arrière : le moteur et le
+  // bot étant déterministes, la même graine et les mêmes réponses redonnent exactement la même partie)
+  constructor(engine, { me, bot, seed, meFirst, names, botName, replay = [] }) {
+    this.replay = [...replay];
+    this.answers = [];
     this.engine = engine;
     this.botName = botName || "L'adversaire";
     this.T = makeTexts(engine, names);
@@ -25074,6 +25079,7 @@ var Game = class {
         }
       }
       if (res.status === 2) break;
+      if (this.replay.length) continue;
       ui.update(this.field(), botActed);
       if (botActed) await ui.pause();
     }
@@ -25086,10 +25092,19 @@ var Game = class {
       response = this.botBrain.respond(m);
     } else {
       const q = question(this, m);
-      response = q ? await ui.prompt(q, this.field()) : void 0;
+      if (q) {
+        response = this.replay.length ? this.replay.shift() : await ui.prompt(q, this.field());
+        this.answers.push({ response, action: q.kind === "actions" });
+      }
     }
     if (!response) response = m.defaultResponse ? m.defaultResponse() : m.prepareResponse(null);
     this.duel.setResponse(response);
+  }
+  // Réponses à rejouer pour revenir juste avant ta dernière action en phase (invocation, activation, attaque…) ;
+  // null s'il n'y en a pas encore.
+  undoPoint() {
+    for (let i = this.answers.length - 1; i >= 0; i--) if (this.answers[i].action) return this.answers.slice(0, i).map((a) => a.response);
+    return null;
   }
   // ------------------------------------------------------------------ journal
   event(kind, m) {

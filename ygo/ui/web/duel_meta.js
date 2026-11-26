@@ -44,11 +44,12 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const LOC = { DECK: 1, HAND: 2, MZONE: 4, SZONE: 8, GRAVE: 16, REMOVED: 32, EXTRA: 64 };
 const PILES = { 1: "Deck", 16: "Cimetière", 32: "Bannies", 64: "Extra Deck", 2: "Main" };
 
-async function start(root) {
+// replay : tes réponses à rejouer (retour arrière), la partie reprend juste après
+async function start(root, replay = null) {
     const data = root.data;
     if (root.game) root.game.stopped = true;
     root.game = null;
-    root.ui = { menu: null, viewer: null, prompt: null, picked: [], detail: null, peek: false, query: "" };
+    root.ui = { menu: null, viewer: null, prompt: null, picked: [], detail: null, peek: !!(root.ui && root.ui.peek), query: "" };
     root.innerHTML = `<div class="loading">Chargement du moteur de règles… (environ 25 Mo la première fois, ensuite en cache)</div>`;
     let mod, engine;
     try {
@@ -60,7 +61,8 @@ async function start(root) {
     }
     if (root.data !== data) return;   // la page a changé pendant le chargement
     const meFirst = data.first === "coin" ? (root.seed % 2 === 0) : data.first === "me";
-    const game = new mod.Game(engine, { me: data.me, bot: data.bot, seed: root.seed * 7919 + 17, meFirst, names: data.names, botName: data.botName });
+    const game = new mod.Game(engine, { me: data.me, bot: data.bot, seed: root.seed * 7919 + 17, meFirst, names: data.names, botName: data.botName, replay: replay || [] });
+    let undone = replay !== null;
     root.game = game;
     root.state = null;
     game.say(null, `Pile ou face : ${meFirst ? "tu commences" : data.botName + " commence"}.`, "turn");
@@ -69,6 +71,7 @@ async function start(root) {
         pause: () => wait(450),
         prompt: (q, state) => new Promise((resolve) => {
             if (root.game !== game) return;
+            if (undone) { undone = false; game.say(null, "Retour juste avant ta dernière action.", "turn"); state = game.field(); }
             root.state = state;
             root.ui.prompt = { ...q, resolve: (r) => { root.ui.prompt = null; root.ui.picked = []; root.ui.menu = null; resolve(r); } };
             root.ui.picked = [];

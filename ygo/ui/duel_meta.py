@@ -82,7 +82,9 @@ il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Surv
 **Échap** annule ce qui n'est pas encore joué : il ferme les boutons d'une carte ou une pile ouverte, efface les
 zones déjà cliquées, et renonce à un effet tant que le moteur l'autorise (choix des cartes à payer ou à cibler au
 moment de l'activation). Une fois l'invocation ou l'activation lancée, le moteur ne permet plus de revenir en
-arrière. Le bouton **Plein écran** agrandit le plateau ; Échap ou le même bouton le referme.
+arrière, mais le bouton **Annuler mon action** si : il rejoue la partie jusqu'à juste avant ta dernière action
+(invocation, activation, attaque, changement de phase…), autant de fois que tu veux. La barre des phases montre où
+en est le tour ; les phases où tu peux passer sont cliquables. Le bouton **Plein écran** agrandit le plateau ; Échap ou le même bouton le referme.
 
 Couleurs du terrain : orange pour les Zones Monstre, vert pour les Zones Magie & Piège, bleu pour la Zone Terrain,
 violet pour les Zones Monstre Extra et l'Extra Deck.

@@ -6,7 +6,11 @@ import { question } from "./questions.js";
 import { makeTexts } from "./texts.js";
 
 export class Game {
-    constructor(engine, { me, bot, seed, meFirst, names, botName }) {
+    // replay : tes réponses d'une partie précédente, rejouées sans rien te demander (retour arrière : le moteur et le
+    // bot étant déterministes, la même graine et les mêmes réponses redonnent exactement la même partie)
+    constructor(engine, { me, bot, seed, meFirst, names, botName, replay = [] }) {
+        this.replay = [...replay];
+        this.answers = [];                     // tes réponses : { response, action } (action = choix fait en phase)
         this.engine = engine;
         this.botName = botName || "L'adversaire";
         this.T = makeTexts(engine, names);
@@ -73,6 +77,7 @@ export class Game {
                 }
             }
             if (res.status === 2) break;
+            if (this.replay.length) continue;   // rejeu : on va directement au point demandé
             ui.update(this.field(), botActed);
             if (botActed) await ui.pause();
         }
@@ -86,10 +91,20 @@ export class Game {
             response = this.botBrain.respond(m);
         } else {
             const q = question(this, m);
-            response = q ? await ui.prompt(q, this.field()) : undefined;
+            if (q) {
+                response = this.replay.length ? this.replay.shift() : await ui.prompt(q, this.field());
+                this.answers.push({ response, action: q.kind === "actions" });
+            }
         }
         if (!response) response = m.defaultResponse ? m.defaultResponse() : m.prepareResponse(null);
         this.duel.setResponse(response);
+    }
+
+    // Réponses à rejouer pour revenir juste avant ta dernière action en phase (invocation, activation, attaque…) ;
+    // null s'il n'y en a pas encore.
+    undoPoint() {
+        for (let i = this.answers.length - 1; i >= 0; i--) if (this.answers[i].action) return this.answers.slice(0, i).map((a) => a.response);
+        return null;
     }
 
     // ------------------------------------------------------------------ journal

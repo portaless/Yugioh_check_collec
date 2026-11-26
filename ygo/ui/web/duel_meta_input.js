@@ -101,5 +101,6 @@ function bind(root) {
         else await root.requestFullscreen().catch(() => root.classList.add("full"));
         render(root);
     }));
+    root.querySelectorAll("[data-undo]").forEach((el) => el.addEventListener("click", () => start(root, root.game.undoPoint())));
     root.querySelectorAll("[data-again]").forEach((el) => el.addEventListener("click", () => { root.seed += 1; start(root); }));
 }

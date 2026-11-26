@@ -64,7 +64,7 @@ export class Bot {
             case "AnnounceAttrib": return m.prepareResponse(m.availableAttributes & -m.availableAttributes);
             case "AnnounceNumber": return m.prepareResponse(0);
             case "AnnounceCard": return m.prepareResponse(14558127);   // Floraison de Cendres : nom souvent pertinent
-            case "RockPaperScissors": return m.prepareResponse(1 + Math.floor(Math.random() * 3));
+            case "RockPaperScissors": return m.prepareResponse(1 + (this.g.turn % 3));   // déterministe (retour arrière)
             default:
                 return m.defaultResponse ? m.defaultResponse() : undefined;
         }

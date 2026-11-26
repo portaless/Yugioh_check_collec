@@ -168,3 +168,13 @@
 /* explication ponctuelle (ex. monstre qui ne peut pas changer de position) */
 .dm .notice { margin: 0 0 .6rem; padding: .45rem .7rem; border: 1px solid var(--gold); border-radius: .5rem;
               background: rgba(227,179,65,.08); font-size: .85rem; }
+
+/* barre des phases du tour */
+.dm .phases { display: flex; align-items: center; gap: .3rem; margin: 0 0 .6rem; flex-wrap: wrap; }
+.dm .phases .pw { font-size: .75rem; color: var(--mute); margin-right: .3rem; text-transform: uppercase; letter-spacing: .05em; }
+.dm .phases.bot .pw { color: #8fa6d6; }
+.dm .phases .ph { font-size: .78rem; padding: .2rem .65rem; border-radius: 1rem; border: 1px solid var(--line); color: var(--mute); }
+.dm .phases .ph.past { opacity: .45; }
+.dm .phases .ph.now { border-color: var(--gold); color: var(--deep); background: var(--gold); font-weight: 700; }
+.dm .phases button.ph.go { color: var(--ink); border-color: var(--gold); cursor: pointer; }
+.dm .phases button.ph.go:hover { background: rgba(227,179,65,.15); }

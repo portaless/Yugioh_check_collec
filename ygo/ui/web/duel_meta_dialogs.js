@@ -73,6 +73,24 @@ function viewerHTML(root) {
         + `<div class="mb"><button data-close="1">Fermer</button></div></div></div>`;
 }
 
+// Les phases du tour, celle en cours en surbrillance ; celles où tu peux passer maintenant sont cliquables.
+const PHASE_BAR = [["Draw Phase", "Draw"], ["Standby Phase", "Standby"], ["Main Phase 1", "Main 1"],
+    ["Battle Phase", "Battle"], ["Main Phase 2", "Main 2"], ["End Phase", "End"]];
+const PHASE_BUTTON = { "Battle Phase": "Battle Phase", "Main Phase 2": "Main Phase 2", "End Phase": "Fin du tour" };
+function phasesHTML(root) {
+    const S = root.state, P = root.ui.prompt;
+    const now = PHASE_BAR.findIndex(([name]) => name === S.phase);
+    const mine = S.turnPlayer === "me";
+    return `<div class="phases ${mine ? "me" : "bot"}"><span class="pw">${mine ? "Ton tour" : "Tour adverse"}</span>`
+        + PHASE_BAR.map(([name, short], i) => {
+            const k = P && P.kind === "actions" && !P.chain ? P.buttons.findIndex((b) => b.label === PHASE_BUTTON[name]) : -1;
+            const cls = ["ph", i === now ? "now" : "", i < now ? "past" : "", k >= 0 ? "go" : ""].join(" ");
+            const why = !mine || k >= 0 || i <= now ? "" : name === "Battle Phase" && S.turn === 1 ? "Pas de Battle Phase au premier tour du duel"
+                : name === "Main Phase 2" ? "La Main Phase 2 vient après la Battle Phase" : "";
+            return k >= 0 ? `<button class="${cls}" data-btn="${k}" title="Passer en ${name}">${short}</button>` : `<span class="${cls}" title="${why}">${short}</span>`;
+        }).join("") + `</div>`;
+}
+
 function render(root) {
     const g = root.game, S = root.state, U = root.ui;
     if (!g || !S) return;
@@ -91,11 +109,13 @@ function render(root) {
     }
     const notice = U.notice ? `<div class="notice">${esc(U.notice)}</div>` : "";
     U.notice = null;   // affiché une fois, jusqu'au prochain affichage
+    const phases = phasesHTML(root);
     root.innerHTML = `<div class="top"><div class="status">${status}</div><div class="ctrl">${buttons}`
         + `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`
+        + (g.undoPoint() ? `<button data-undo="1" title="Rejoue la partie jusqu'à juste avant ta dernière action">Annuler mon action</button>` : "")
         + `<button data-full="1">${document.fullscreenElement === root || root.classList.contains("full") ? "Quitter le plein écran" : "Plein écran"}</button>`
         + `<button data-again="1">${S.over ? "Rejouer" : "Recommencer"}</button></div></div>`
-        + notice + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
+        + phases + notice + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
         + `<div class="log">${log}</div></div>${viewerHTML(root)}${menu}`;
     if (P && P.kind === "actions") {
         // effet d'une carte qui n'est pas affichée (matériel Xyz…) : proposé en bouton dans la barre du haut
