@@ -12,6 +12,12 @@ export default function (component) {
             if (root.ui && root.ui.menu && !e.target.closest(".menu")) { root.ui.menu = null; render(root); }
         });
     }
+    window.__dmRoot = root;
+    if (!window.__dmEscape) {   // Échap annule ce qui n'est pas encore joué (une seule écoute pour la page)
+        window.__dmEscape = true;
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && window.__dmRoot) escape(window.__dmRoot); }, true);
+        document.addEventListener("fullscreenchange", () => { if (window.__dmRoot && window.__dmRoot.game) render(window.__dmRoot); });
+    }
     root.data = data;
     if (root.dataset.key !== data.key) {
         root.dataset.key = data.key;
@@ -24,8 +30,8 @@ export default function (component) {
 
 // ------------------------------------------------------------------ chargement du moteur (une fois par page)
 const ENGINE_BASE = new URL("app/static/engine/", document.baseURI).href;
-function engineModule() {
-    if (!window.__ygoEngineModule) window.__ygoEngineModule = import(ENGINE_BASE + "engine.js");
+function engineModule(version) {   // version : empêche le navigateur de garder un ancien moteur en cache
+    if (!window.__ygoEngineModule) window.__ygoEngineModule = import(ENGINE_BASE + "engine.js?v=" + version);
     return window.__ygoEngineModule;
 }
 function engineData(mod) {
@@ -46,7 +52,7 @@ async function start(root) {
     root.innerHTML = `<div class="loading">Chargement du moteur de règles… (environ 25 Mo la première fois, ensuite en cache)</div>`;
     let mod, engine;
     try {
-        mod = await engineModule();
+        mod = await engineModule(data.engine);
         engine = await engineData(mod);
     } catch (e) {
         root.innerHTML = `<div class="loading err">Impossible de charger le moteur de règles : ${esc(e.message || e)}</div>`;

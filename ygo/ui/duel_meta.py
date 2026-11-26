@@ -12,6 +12,7 @@ from ygo.images import thumb_src
 from ygo.ui.core import con, web
 from ygo.ui.style import page_header
 
+ENGINE_JS = engine_data.DATA_DIR.parent / "engine.js"
 PARTS = ("duel_meta.js", "duel_meta_board.js", "duel_meta_dialogs.js", "duel_meta_input.js")
 # le plateau est découpé en plusieurs fichiers, assemblés en un seul module pour le composant
 DUEL = st.components.v2.component("duel_meta", css=web("duel_meta.css"), js="\n".join(web(f) for f in PARTS))
@@ -70,6 +71,7 @@ def page_duel_meta():
     payload = T.payload((my_main, my_extra), (opp_main, opp_extra), imgs) | {
         "botName": opp_name, "first": {"Moi": "me", "Lui": "bot"}.get(first, "coin"),
         "seed": st.session_state.get("duel_meta_seed", 0),
+        "engine": int(ENGINE_JS.stat().st_mtime),   # version du moteur, pour que le navigateur recharge un moteur mis à jour
     }
     payload["key"] = f"{mine}|{opp['id']}|{first}|{payload['seed']}"
     if opp.get("url"):
@@ -88,6 +90,14 @@ automatiquement, chaînes comprises.
 d'elle (invoquer, poser, activer). Les boutons du haut changent de phase ou finissent le tour. Quand tu peux
 répondre en chaîne, tes cartes concernées s'allument de la même façon, avec un bouton « Ne rien activer ». Quand
 il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Survole une carte pour lire son texte.
+
+**Échap** annule ce qui n'est pas encore joué : il ferme les boutons d'une carte ou une pile ouverte, efface les
+zones déjà cliquées, et renonce à un effet tant que le moteur l'autorise (choix des cartes à payer ou à cibler au
+moment de l'activation). Une fois l'invocation ou l'activation lancée, le moteur ne permet plus de revenir en
+arrière. Le bouton **Plein écran** agrandit le plateau ; Échap ou le même bouton le referme.
+
+Couleurs du terrain : orange pour les Zones Monstre, vert pour les Zones Magie & Piège, bleu pour la Zone Terrain,
+violet pour les Zones Monstre Extra et l'Extra Deck.
 
 **Le bot** joue la liste « {opp_name} » par l'intermédiaire du même moteur : il active ses effets dès qu'il le peut,
 utilise ses interruptions dès qu'elles sont possibles, invoque et attaque. Sa stratégie est simple, mais il ne

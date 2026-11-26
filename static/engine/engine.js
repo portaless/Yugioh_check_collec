@@ -24855,7 +24855,9 @@ function question(game, m) {
         sum: kind === "SelectSum" ? m.sumVal : null,
         must,
         build: (idx) => m.prepareResponse(idx.map((i) => IndexResponse(i))),
-        cancel: m.cancelable ? m.prepareResponse(null) : null
+        cancel: m.cancelable ? m.prepareResponse(null) : null,
+        escape: m.cancelable ? m.prepareResponse(null) : null
+        // Échap : renoncer à jouer la carte
       };
     }
     case "SelectUnselectCard": {
@@ -24870,7 +24872,9 @@ function question(game, m) {
         chosen: m.unselectableCards.map((c) => T.name(c.code)),
         build: (idx) => m.prepareResponse(IndexResponse(idx[0])),
         cancel: m.finishable || m.cancelable ? m.prepareResponse(null) : null,
-        cancelLabel: m.finishable ? "Terminer la s\xE9lection" : "Annuler"
+        cancelLabel: m.finishable ? "Terminer la s\xE9lection" : "Annuler",
+        escape: m.cancelable && !m.finishable ? m.prepareResponse(null) : null
+        // jamais « terminer » par Échap
       };
     }
     case "SelectPlace":
@@ -25109,6 +25113,8 @@ var Game = class {
       this.say(from.controller, `${name} est envoy\xE9 du Deck au Cimeti\xE8re.`);
     } else if (field(from.location) && to.location === LOC.HAND) {
       this.say(from.controller, `${name} retourne dans la main.`);
+    } else if (to.location === LOC.SZONE && from.location !== LOC.HAND && !field(from.location)) {
+      this.say(to.controller, `${name} est plac\xE9${from.location === LOC.EXTRA ? " depuis l'Extra Deck" : ""} dans la Zone Magie & Pi\xE8ge${to.sequence === 5 ? " (Terrain)" : ""}.`);
     }
   }
   codeAt(x) {

@@ -18,9 +18,13 @@ function cardHTML(root, c, opts = {}) {
     const cls = ["card", hidden || down ? "down" : "", def && opts.loc === LOC.MZONE ? "def" : "", can ? "can" : ""].join(" ");
     const stat = opts.field && opts.loc === LOC.MZONE && !hidden
         ? `<span class="stat">${(c.type & 0x4000000) ? "LINK " + (c.link || "") + " · " + c.attack : def ? "DEF " + c.defense : "ATK " + c.attack}</span>` : "";
+    // monstre posé dans la Zone Magie & Piège par un effet (ex. Angetélité) : il y est une Magie Continue
+    const extras = [...root.data.me.extra, ...root.data.bot.extra];
+    const asSpell = opts.field && opts.loc === LOC.SZONE && !hidden && !down && extras.includes(c.code)
+        ? `<span class="stat">Magie Continue</span>` : "";
     const xyz = c.overlayCards && c.overlayCards.length ? `<span class="ov">${c.overlayCards.length}</span>` : "";
     return `<div class="${cls}" data-key="${hidden ? "" : c.key}" data-code="${hidden ? "" : c.code}" title="${hidden ? "" : esc(i.name)}">`
-        + `${!hidden && i.img ? `<img src="${i.img}" alt="">` : ""}${stat}${xyz}</div>`;
+        + `${!hidden && i.img ? `<img src="${i.img}" alt="">` : ""}${stat}${asSpell}${xyz}</div>`;
 }
 
 function zoneHTML(root, who, loc, seq, c, foe) {
@@ -28,7 +32,10 @@ function zoneHTML(root, who, loc, seq, c, foe) {
     const p = who === "me" ? root.game.me : root.game.bot;
     const pickable = P && P.kind === "place" && P.places.some((z) => z.player === p && z.location === loc && z.sequence === seq);
     const picked = root.ui.picked.some((z) => z.player === p && z.location === loc && z.sequence === seq);
-    return `<div class="slot${pickable ? " pick" : ""}${picked ? " picked" : ""}" data-zone="${p}:${loc}:${seq}">${cardHTML(root, c, { field: true, foe, loc })}</div>`;
+    // chaque type de zone a sa teinte et son nom (affiché quand elle est vide)
+    const [zone, label] = loc === LOC.MZONE ? (seq >= 5 ? ["zx", "Zone Extra"] : ["zm", "Monstre"])
+        : seq === 5 ? ["zf fieldz", "Terrain"] : ["zs", "Magie / Piège"];
+    return `<div class="slot ${zone}${pickable ? " pick" : ""}${picked ? " picked" : ""}" data-zone="${p}:${loc}:${seq}" data-label="${label}">${cardHTML(root, c, { field: true, foe, loc })}</div>`;
 }
 
 function pileHTML(root, who, loc, list, label) {
@@ -38,7 +45,7 @@ function pileHTML(root, who, loc, list, label) {
     const top = Array.isArray(list) && (loc === LOC.GRAVE || loc === LOC.REMOVED) ? list.filter(Boolean).slice(-1)[0] : null;
     const back = (loc === LOC.DECK || loc === LOC.EXTRA) && n ? '<div class="card down"></div>' : "";
     const can = P && P.kind === "actions" && P.actions.some((a) => a.key.startsWith(`${p}:${loc}:`));
-    return `<div class="slot pile${can ? " can" : ""}" data-pile="${who}:${loc}">${top ? cardHTML(root, top) : back}<span class="num">${n}</span><span class="lbl">${label}</span></div>`;
+    return `<div class="slot pile${loc === LOC.EXTRA ? " zx" : ""}${can ? " can" : ""}" data-pile="${who}:${loc}">${top ? cardHTML(root, top) : back}<span class="num">${n}</span><span class="lbl">${label}</span></div>`;
 }
 
 function sideHTML(root, who) {
@@ -46,7 +53,7 @@ function sideHTML(root, who) {
     const order = foe ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4];    // terrain adverse vu en miroir (colonnes respectées)
     const mz = order.map((i) => zoneHTML(root, who, LOC.MZONE, i, S.mzone[i], foe)).join("");
     const sz = order.map((i) => zoneHTML(root, who, LOC.SZONE, i, S.szone[i], foe)).join("");
-    const rowM = `<div class="row">${zoneHTML(root, who, LOC.SZONE, 5, S.szone[5], foe).replace('class="slot', 'class="slot fieldz')}${mz}${pileHTML(root, who, LOC.GRAVE, S.grave, "Cimetière")}</div>`;
+    const rowM = `<div class="row">${zoneHTML(root, who, LOC.SZONE, 5, S.szone[5], foe)}${mz}${pileHTML(root, who, LOC.GRAVE, S.grave, "Cimetière")}</div>`;
     const rowS = `<div class="row">${pileHTML(root, who, LOC.EXTRA, S.extra, "Extra")}${sz}${pileHTML(root, who, LOC.DECK, S.deck, "Deck")}</div>`;
     const hidden = foe && !root.ui.peek;
     const hand = `<div class="hand">${S.hand.filter(Boolean).map((c) => `<div class="slot">${cardHTML(root, c, { hidden, foe })}</div>`).join("")}</div>`;

@@ -152,6 +152,9 @@ export class Game {
             this.say(from.controller, `${name} est envoyé du Deck au Cimetière.`);
         } else if (field(from.location) && to.location === LOC.HAND) {
             this.say(from.controller, `${name} retourne dans la main.`);
+        } else if (to.location === LOC.SZONE && from.location !== LOC.HAND && !field(from.location)) {
+            // carte posée par un effet (ex. monstre de l'Extra Deck placé en Magie Continue)
+            this.say(to.controller, `${name} est placé${from.location === LOC.EXTRA ? " depuis l'Extra Deck" : ""} dans la Zone Magie & Piège${to.sequence === 5 ? " (Terrain)" : ""}.`);
         }
     }
 

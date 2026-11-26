@@ -132,3 +132,24 @@
            background: var(--deep); color: var(--ink); border: 1px solid var(--line); font: inherit; }
 .dm button:disabled { opacity: .45; cursor: default; }
 .dm .log .it.bot b { color: #6C8EBF; } .dm .log .it.warn b { color: #E3A93A; }
+
+/* zones du terrain : une teinte par type (Monstre, Magie / Piège, Terrain, Extra), nom visible quand vide */
+.dm .slot.zm { border: 1px solid rgba(214,150,80,.4); background: rgba(214,150,80,.07); }
+.dm .slot.zs { border: 1px solid rgba(70,170,150,.4); background: rgba(70,170,150,.07); }
+.dm .slot.zf { border: 1px solid rgba(108,142,191,.5); background: rgba(108,142,191,.08); }
+.dm .slot.zx { border: 1px solid rgba(160,120,220,.5); background: rgba(160,120,220,.09); }
+.dm .pile.zx { border-color: rgba(160,120,220,.6); }
+.dm .slot[data-label]:empty::before { content: attr(data-label); position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center; text-align: center; padding: .2rem; font-size: .6rem;
+    letter-spacing: .04em; text-transform: uppercase; color: rgba(233,230,221,.35); }
+.dm .slot.zm:empty::before { color: rgba(214,150,80,.6); }
+.dm .slot.zs:empty::before { color: rgba(70,170,150,.65); }
+.dm .slot.zf:empty::before { color: rgba(108,142,191,.7); }
+.dm .slot.zx:empty::before { color: rgba(160,120,220,.75); }
+.dm .row.emz .slot:empty:not(.pick) { opacity: 1; }
+
+/* plein écran : le plateau occupe tout l'écran, sur le fond de l'appli */
+.dm.full { position: fixed; inset: 0; z-index: 999999; }
+.dm:fullscreen, .dm.full { background: var(--deep); padding: 1rem 1.4rem; overflow-y: auto; }
+.dm:fullscreen .layout, .dm.full .layout { min-height: calc(100vh - 5rem); }
+.dm:fullscreen .layout, .dm.full .layout { grid-template-columns: 260px minmax(0, calc((100vh - 8rem) / 1.5)) 340px; justify-content: center; }

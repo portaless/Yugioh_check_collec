@@ -63,6 +63,7 @@ export function question(game, m) {
                 min: m.min, max: m.max, cards, sum: kind === "SelectSum" ? m.sumVal : null, must,
                 build: (idx) => m.prepareResponse(idx.map((i) => IndexResponse(i))),
                 cancel: m.cancelable ? m.prepareResponse(null) : null,
+                escape: m.cancelable ? m.prepareResponse(null) : null,   // Échap : renoncer à jouer la carte
             };
         }
         case "SelectUnselectCard": {
@@ -73,6 +74,7 @@ export function question(game, m) {
                 build: (idx) => m.prepareResponse(IndexResponse(idx[0])),
                 cancel: m.finishable || m.cancelable ? m.prepareResponse(null) : null,
                 cancelLabel: m.finishable ? "Terminer la sélection" : "Annuler",
+                escape: m.cancelable && !m.finishable ? m.prepareResponse(null) : null,   // jamais « terminer » par Échap
             };
         }
         case "SelectPlace": case "SelectDisfield": {
