@@ -1,13 +1,14 @@
 // Duel contre la méta, partie interactions : clics sur les cartes, les zones et les fenêtres (assemblée avec les autres fichiers duel_meta_*.js par ygo/ui/duel_meta.py).
 
 // Échap : ferme les boutons d'une carte ou une pile ouverte, retire les choix en cours, ou annule la question du
-// moteur quand il l'autorise (la carte n'est alors pas jouée et on revient à la phase).
+// moteur quand il l'autorise, sinon revient avant ton action en cours (retour arrière).
 function escape(root) {
     const U = root.ui, P = U && U.prompt;
     if (!U) return;
     if (U.menu || U.viewer) { U.menu = null; U.viewer = null; return render(root); }
     if (U.picked.length) { U.picked = []; return render(root); }
     if (P && P.escape) return P.resolve(P.escape);
+    if (backable(root)) return start(root, root.game.undoPoint());   // revenir avant l'action en cours
     if (root.classList.contains("full")) { root.classList.remove("full"); render(root); }
 }
 
@@ -102,5 +103,5 @@ function bind(root) {
         render(root);
     }));
     root.querySelectorAll("[data-undo]").forEach((el) => el.addEventListener("click", () => start(root, root.game.undoPoint())));
-    root.querySelectorAll("[data-again]").forEach((el) => el.addEventListener("click", () => { root.seed += 1; start(root); }));
+    root.querySelectorAll("[data-again]").forEach((el) => el.addEventListener("click", () => start(root)));
 }

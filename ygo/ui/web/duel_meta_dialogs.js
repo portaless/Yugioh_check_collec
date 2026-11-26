@@ -7,12 +7,19 @@ function detailHTML(root) {
     return `<div class="detail">${i.img ? `<img src="${i.img}" alt="">` : ""}<div class="dn">${esc(i.name)}</div><div class="tx">${esc(i.text)}</div></div>`;
 }
 
+// Pendant ton tour, une question qui suit ton action (cibles, coût, zone, option…) : on peut revenir avant l'action.
+function backable(root) {
+    const P = root.ui.prompt;
+    return !!(P && P.kind !== "actions" && root.state.turnPlayer === "me" && root.game.undoPoint());
+}
+
 function promptHTML(root) {
     const P = root.ui.prompt;
     if (!P || P.kind === "actions") return "";
+    const back = backable(root) ? `<button class="back" data-undo="1" title="Annule l'action en cours : tu reviens juste avant">Revenir en arrière (Échap)</button>` : "";
     const opt = (o, k) => `<button class="opt" data-opt="${k}">${o.code ? `<div class="card" data-code="${o.code}">${info(root, o.code).img ? `<img src="${info(root, o.code).img}" alt="">` : ""}</div>` : ""}<span>${o.code ? `<b>${esc(info(root, o.code).name)}</b>` : ""}${esc(o.label)}</span></button>`;
     if (P.kind === "place") {
-        return `<div class="banner">${esc(P.title)} <i>(${root.ui.picked.length}/${P.count}) : clique une zone dorée.</i></div>`;
+        return `<div class="banner">${esc(P.title)} <i>(${root.ui.picked.length}/${P.count}) : clique une zone dorée.</i> ${back}</div>`;
     }
     let body = "";
     if (P.kind === "choose") body = `<div class="opts">${P.options.map(opt).join("")}</div>` + (P.cancel ? `<div class="mb"><button data-cancel="1">${esc(P.cancel.label)}</button></div>` : "");
@@ -31,7 +38,7 @@ function promptHTML(root) {
         const hits = q.length >= 2 ? P.names.filter(([, n]) => String(n).toLowerCase().includes(q)).slice(0, 30) : [];
         body = `<input class="ann" placeholder="Tape un nom de carte…" value="${esc(root.ui.query)}"><div class="opts">${hits.map(([code, n]) => `<button class="opt" data-ann="${code}"><span>${esc(n)}</span></button>`).join("")}</div>`;
     }
-    return `<div class="modal"><div class="box"><div class="mt">${esc(P.title)}</div>${body}</div></div>`;
+    return `<div class="modal"><div class="box"><div class="mt">${esc(P.title)}</div>${body}${back ? `<div class="mb left">${back}</div>` : ""}</div></div>`;
 }
 function where(root, c) {
     const mine = c.controller === root.game.me;

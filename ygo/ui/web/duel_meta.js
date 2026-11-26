@@ -21,7 +21,6 @@ export default function (component) {
     root.data = data;
     if (root.dataset.key !== data.key) {
         root.dataset.key = data.key;
-        root.seed = data.seed;
         start(root);
     } else if (root.game) {
         render(root);
@@ -60,12 +59,17 @@ async function start(root, replay = null) {
         return;
     }
     if (root.data !== data) return;   // la page a changé pendant le chargement
-    const meFirst = data.first === "coin" ? (root.seed % 2 === 0) : data.first === "me";
-    const game = new mod.Game(engine, { me: data.me, bot: data.bot, seed: root.seed * 7919 + 17, meFirst, names: data.names, botName: data.botName, replay: replay || [] });
+    if (replay === null) {   // nouvelle partie : mélange et pile ou face tirés au hasard (un retour arrière les garde)
+        root.seed = Math.floor(Math.random() * 2 ** 31);
+        root.meFirst = data.first === "coin" ? Math.random() < 0.5 : data.first === "me";
+    }
+    const meFirst = root.meFirst;
+    const game = new mod.Game(engine, { me: data.me, bot: data.bot, seed: root.seed, meFirst, names: data.names, botName: data.botName, replay: replay || [] });
     let undone = replay !== null;
     root.game = game;
     root.state = null;
-    game.say(null, `Pile ou face : ${meFirst ? "tu commences" : data.botName + " commence"}.`, "turn");
+    const who = meFirst ? "tu commences" : data.botName + " commence";
+    game.say(null, data.first === "coin" ? `Pile ou face : ${who}.` : `Comme choisi, ${who}.`, "turn");
     const ui = {
         update: (state) => { if (root.game === game) { root.state = state; render(root); } },
         pause: () => wait(450),

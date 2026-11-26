@@ -178,3 +178,5 @@
 .dm .phases .ph.now { border-color: var(--gold); color: var(--deep); background: var(--gold); font-weight: 700; }
 .dm .phases button.ph.go { color: var(--ink); border-color: var(--gold); cursor: pointer; }
 .dm .phases button.ph.go:hover { background: rgba(227,179,65,.15); }
+.dm .back { border-color: rgba(143,166,214,.6); color: #c9d4ee; }
+.dm .banner .back { margin-left: .6rem; padding: .1rem .6rem; font-size: .78rem; }

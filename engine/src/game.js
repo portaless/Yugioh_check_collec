@@ -10,6 +10,7 @@ export class Game {
     // bot étant déterministes, la même graine et les mêmes réponses redonnent exactement la même partie)
     constructor(engine, { me, bot, seed, meFirst, names, botName, replay = [] }) {
         this.replay = [...replay];
+        this.fast = replay.length > 0;          // rejeu sans pauses jusqu'à la prochaine question
         this.answers = [];                     // tes réponses : { response, action } (action = choix fait en phase)
         this.engine = engine;
         this.botName = botName || "L'adversaire";
@@ -77,7 +78,7 @@ export class Game {
                 }
             }
             if (res.status === 2) break;
-            if (this.replay.length) continue;   // rejeu : on va directement au point demandé
+            if (this.fast) continue;   // rejeu : on va directement au point demandé
             ui.update(this.field(), botActed);
             if (botActed) await ui.pause();
         }
@@ -92,7 +93,8 @@ export class Game {
         } else {
             const q = question(this, m);
             if (q) {
-                response = this.replay.length ? this.replay.shift() : await ui.prompt(q, this.field());
+                if (this.replay.length) response = this.replay.shift();
+                else { this.fast = false; response = await ui.prompt(q, this.field()); }
                 this.answers.push({ response, action: q.kind === "actions" });
             }
         }
@@ -132,7 +134,7 @@ export class Game {
                 const what = T.desc(m.desc, m.code);
                 const named = m.desc >= 10000 && !what.startsWith("«") && !["Effet", "Activer", "Activer l'effet"].includes(what)
                     && what !== `Effet de ${T.name(Math.floor(m.desc / 16))}` ? ` : ${what}` : "";
-                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}.`, m.controller === me ? "" : "bot");
+                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}${m.controller !== me && this.turnPlayer === me ? " pendant ton tour" : ""}.`, m.controller === me ? "" : "bot");
                 break;
             }
             case "ChainNegated": case "ChainDisabled":
