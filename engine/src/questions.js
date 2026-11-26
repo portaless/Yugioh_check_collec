@@ -35,11 +35,12 @@ export function question(game, m) {
         }
         case "SelectChain": {
             if (!m.chains.length) return null;   // rien à enchaîner : le moteur passe tout seul
+            // comme une phase de jeu : les cartes qui peuvent répondre s'allument, un clic active leur effet
             const forced = m.chains.some((c) => c.forced);
             return {
-                kind: "choose", title: "Activer un effet en chaîne ?",
-                options: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: T.desc(c.desc, c.code), response: m.prepareResponse(IndexResponse(i)) })),
-                cancel: forced ? null : { label: "Ne rien activer", response: m.prepareResponse(null) },
+                kind: "actions", chain: true,
+                actions: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: `Activer : ${T.desc(c.desc, c.code)}`, response: m.prepareResponse(IndexResponse(i)) })),
+                buttons: forced ? [] : [{ label: "Ne rien activer", main: true, response: m.prepareResponse(null) }],
             };
         }
         case "SelectEffectYn":

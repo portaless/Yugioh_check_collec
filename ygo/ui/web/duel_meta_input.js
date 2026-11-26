@@ -2,7 +2,6 @@
 
 function bind(root) {
     const U = root.ui, P = U.prompt;
-    const box = root.getBoundingClientRect();
     const answer = (r) => P && P.resolve(r);
     root.querySelectorAll(".card[data-code]").forEach((el) => {
         const code = +el.dataset.code;
@@ -14,11 +13,18 @@ function bind(root) {
             if (d) d.outerHTML = detailHTML(root);
         });
     });
+    // clic sur une carte jouable : une seule action possible, elle est jouée tout de suite ; sinon ses actions
+    // s'affichent en boutons juste au-dessus de la carte
     root.querySelectorAll(".card.can[data-key]").forEach((el) => el.addEventListener("click", (e) => {
         e.stopPropagation();
-        const r = el.getBoundingClientRect();
-        U.menu = { key: el.dataset.key, x: Math.max(0, Math.min(r.left - box.left, box.width - 260)), y: r.bottom - box.top + 4 };
+        const acts = P.actions.filter((a) => a.key === el.dataset.key);
         U.detail = +el.dataset.code || U.detail;
+        if (acts.length === 1) {
+            U.menu = null; U.viewer = null;
+            return answer(acts[0].response);
+        }
+        const r = el.getBoundingClientRect(), box = root.getBoundingClientRect();
+        U.menu = { key: el.dataset.key, x: Math.max(0, Math.min(r.left - box.left + r.width / 2 - 120, box.width - 240)), y: r.top - box.top - 4 };
         render(root);
     }));
     root.querySelectorAll("[data-pile]").forEach((el) => el.addEventListener("click", (e) => {
@@ -32,6 +38,10 @@ function bind(root) {
         const a = root.menuActs[+el.dataset.act];
         U.menu = null; U.viewer = null;
         answer(a.response);
+    }));
+    root.querySelectorAll("[data-orphan]").forEach((el) => el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        answer(root.orphans[+el.dataset.orphan].response);
     }));
     root.querySelectorAll("[data-btn]").forEach((el) => el.addEventListener("click", (e) => {
         e.stopPropagation();

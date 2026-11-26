@@ -83,10 +83,11 @@ def page_duel_meta():
 carte a son script qui programme son effet. Tu ne peux faire que des actions légales, et les effets se résolvent
 automatiquement, chaînes comprises.
 
-**Toi** : les cartes qui peuvent agir s'allument en doré ; clique dessus pour voir ce qui est possible (invoquer,
-poser, activer un effet, attaquer). Les boutons du haut changent de phase ou finissent le tour. Quand un effet
-peut être activé en réponse, le moteur te le propose ; quand il faut choisir des cartes, une zone ou une position,
-une fenêtre s'ouvre. Survole une carte pour lire son texte.
+**Toi** : les cartes qui peuvent agir s'allument en doré. Clique dessus : si une seule action est possible
+(activer son effet, attaquer…), elle est jouée tout de suite ; sinon ses actions s'affichent juste au-dessus
+d'elle (invoquer, poser, activer). Les boutons du haut changent de phase ou finissent le tour. Quand tu peux
+répondre en chaîne, tes cartes concernées s'allument de la même façon, avec un bouton « Ne rien activer ». Quand
+il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Survole une carte pour lire son texte.
 
 **Le bot** joue la liste « {opp_name} » par l'intermédiaire du même moteur : il active ses effets dès qu'il le peut,
 utilise ses interruptions dès qu'elles sont possibles, invoque et attaque. Sa stratégie est simple, mais il ne

@@ -47,8 +47,18 @@ function viewerHTML(root) {
     const list = ({ 16: S.grave, 32: S.removed, 64: S.extra, 2: S.hand })[+loc] || [];
     const visible = who === "me" || +loc === LOC.GRAVE || +loc === LOC.REMOVED;
     const cards = list.filter(Boolean).filter((c) => visible || (c.position & 5));
+    // exemplaires identiques regroupés en une seule carte « ×N » (celle qui peut agir, s'il y en a une)
+    const P = root.ui.prompt;
+    const can = (c) => P && P.kind === "actions" && P.actions.some((a) => a.key === c.key);
+    const groups = new Map();
+    for (const c of cards) {
+        const g = groups.get(c.code);
+        if (!g) groups.set(c.code, { card: c, n: 1 });
+        else { g.n += 1; if (!can(g.card) && can(c)) g.card = c; }
+    }
+    const tiles = [...groups.values()].map(({ card, n }) => `<div class="slot">${cardHTML(root, card)}${n > 1 ? `<span class="cnt">×${n}</span>` : ""}</div>`);
     return `<div class="modal"><div class="box wide"><div class="mt">${who === "me" ? "Ton" : "Son"} ${PILES[loc] || ""} (${list.filter(Boolean).length})</div>`
-        + `<div class="grid">${cards.length ? cards.map((c) => `<div class="slot">${cardHTML(root, c)}</div>`).join("") : "<i>Cartes cachées.</i>"}</div>`
+        + `<div class="grid">${tiles.length ? tiles.join("") : "<i>Cartes cachées.</i>"}</div>`
         + `<div class="mb"><button data-close="1">Fermer</button></div></div></div>`;
 }
 
@@ -59,19 +69,27 @@ function render(root) {
     const myTurn = S.turnPlayer === "me";
     const buttons = P && P.kind === "actions" ? P.buttons.map((b, k) => `<button class="${b.main ? "main" : ""}" data-btn="${k}">${esc(b.label)}</button>`).join("") : "";
     const status = S.over ? esc(S.over) : `Tour ${S.turn || 1} · ${myTurn ? "à toi" : esc(root.data.botName)} · ${esc(S.phase || "")}`
-        + (P ? (P.kind === "actions" ? " · à toi d'agir" : " · choix demandé") : !myTurn ? " · l'adversaire joue…" : "");
+        + (P ? (P.kind === "actions" ? (P.chain ? " · tu peux répondre en chaîne : clique une carte dorée" : " · à toi d'agir") : " · choix demandé") : !myTurn ? " · l'adversaire joue…" : "");
     const log = S.log.map((l) => `<div class="it ${l.tone}"><b>${l.who === "me" ? "Toi" : l.who === "bot" ? esc(root.data.botName) : "Duel"}</b> ${esc(l.text)}</div>`).join("");
     let menu = "";
     if (U.menu) {
         const acts = P && P.kind === "actions" ? P.actions.filter((a) => a.key === U.menu.key) : [];
         root.menuActs = acts;
-        if (acts.length) menu = `<div class="menu" style="left:${U.menu.x}px;top:${U.menu.y}px"><div class="mh">${esc(info(root, acts[0].code).name)}</div>${acts.map((a, k) => `<button data-act="${k}">${esc(a.label)}</button>`).join("")}</div>`;
+        if (acts.length) menu = `<div class="menu" style="left:${U.menu.x}px;top:${U.menu.y}px">${acts.map((a, k) => `<button data-act="${k}">${esc(a.label)}</button>`).join("")}</div>`;
     }
     root.innerHTML = `<div class="top"><div class="status">${status}</div><div class="ctrl">${buttons}`
         + `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`
         + `<button data-again="1">${S.over ? "Rejouer" : "Recommencer"}</button></div></div>`
         + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
         + `<div class="log">${log}</div></div>${viewerHTML(root)}${menu}`;
+    if (P && P.kind === "actions") {
+        // effet d'une carte qui n'est pas affichée (matériel Xyz…) : proposé en bouton dans la barre du haut
+        const shown = new Set([...root.querySelectorAll(".card[data-key]")].map((el) => el.dataset.key));
+        const piles = [...root.querySelectorAll("[data-pile]")].map((el) => el.dataset.pile.split(":")[1]).filter((loc) => +loc !== LOC.DECK);
+        root.orphans = P.actions.filter((a) => !shown.has(a.key) && !piles.includes(a.key.split(":")[1]));
+        root.querySelector(".ctrl").insertAdjacentHTML("afterbegin",
+            root.orphans.map((a, k) => `<button class="main" data-orphan="${k}">${esc(info(root, a.code).name)} : ${esc(a.label)}</button>`).join(""));
+    }
     const logEl = root.querySelector(".log");
     logEl.scrollTop = logEl.scrollHeight;
     bind(root);

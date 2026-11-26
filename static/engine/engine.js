@@ -24818,10 +24818,10 @@ function question(game, m) {
       if (!m.chains.length) return null;
       const forced = m.chains.some((c) => c.forced);
       return {
-        kind: "choose",
-        title: "Activer un effet en cha\xEEne ?",
-        options: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: T.desc(c.desc, c.code), response: m.prepareResponse(IndexResponse(i)) })),
-        cancel: forced ? null : { label: "Ne rien activer", response: m.prepareResponse(null) }
+        kind: "actions",
+        chain: true,
+        actions: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: `Activer : ${T.desc(c.desc, c.code)}`, response: m.prepareResponse(IndexResponse(i)) })),
+        buttons: forced ? [] : [{ label: "Ne rien activer", main: true, response: m.prepareResponse(null) }]
       };
     }
     case "SelectEffectYn":

@@ -76,11 +76,14 @@
 .dm .log .it.turn { margin-top: .4rem; border-top: 1px solid var(--line); padding-top: .45rem; color: var(--gold); }
 
 /* menu d'actions, fenêtres */
-.dm .menu { position: absolute; z-index: 30; background: var(--panel); border: 1px solid var(--gold); border-radius: .5rem;
-            padding: .3rem; min-width: 230px; box-shadow: 0 12px 30px rgba(0,0,0,.5); display: grid; gap: .15rem; }
-.dm .menu .mh { font-weight: 700; font-size: .8rem; color: var(--gold); padding: .2rem .4rem .3rem; }
-.dm .menu button { text-align: left; border: none; background: transparent; }
-.dm .menu button:hover { background: rgba(227,179,65,.12); }
+/* actions d'une carte : boutons posés juste au-dessus de la carte cliquée */
+.dm .menu { position: absolute; z-index: 30; width: 240px; transform: translateY(-100%); display: grid; gap: .2rem; }
+.dm .menu button { text-align: left; font-size: .8rem; background: var(--panel); border: 1px solid var(--gold);
+                   box-shadow: 0 6px 16px rgba(0,0,0,.45); }
+.dm .menu button:hover { background: #2a3352; }
+.dm .modal .grid .slot { position: relative; }
+.dm .cnt { position: absolute; bottom: .15rem; right: .2rem; z-index: 3; font-size: .7rem; font-weight: 700;
+           background: var(--gold); color: var(--deep); border-radius: .6rem; padding: 0 .35rem; }
 .dm .modal { position: absolute; inset: 0; z-index: 20; background: rgba(8,10,22,.72); display: flex;
              align-items: flex-start; justify-content: center; padding-top: 4rem; border-radius: .8rem; }
 .dm .modal .box { background: var(--panel); border: 1px solid var(--gold); border-radius: .8rem; padding: 1rem;
