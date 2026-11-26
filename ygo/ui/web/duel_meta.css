@@ -153,3 +153,11 @@
 .dm:fullscreen, .dm.full { background: var(--deep); padding: 1rem 1.4rem; overflow-y: auto; }
 .dm:fullscreen .layout, .dm.full .layout { min-height: calc(100vh - 5rem); }
 .dm:fullscreen .layout, .dm.full .layout { grid-template-columns: 260px minmax(0, calc((100vh - 8rem) / 1.5)) 340px; justify-content: center; }
+
+/* choix d'un effet : nom court en doré, puis le texte de l'effet */
+.dm .effs { display: grid; gap: .4rem; margin-top: .8rem; }
+.dm .effs .eff { display: grid; gap: .2rem; text-align: left; padding: .5rem .7rem; }
+.dm .effs .eff b { color: var(--gold); font-size: .85rem; }
+.dm .effs .eff span { font-size: .8rem; line-height: 1.35; color: var(--ink); }
+.dm .effs .eff:hover { border-color: var(--gold); background: #222a47; }
+.dm .effbox .ms { max-height: 9rem; overflow-y: auto; white-space: pre-line; }

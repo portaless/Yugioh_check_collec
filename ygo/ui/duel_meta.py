@@ -87,7 +87,8 @@ automatiquement, chaînes comprises.
 
 **Toi** : les cartes qui peuvent agir s'allument en doré. Clique dessus : si une seule action est possible
 (activer son effet, attaquer…), elle est jouée tout de suite ; sinon ses actions s'affichent juste au-dessus
-d'elle (invoquer, poser, activer). Les boutons du haut changent de phase ou finissent le tour. Quand tu peux
+d'elle (invoquer, poser). Si la carte a un effet parmi ses choix, une fenêtre détaille chaque effet avec son
+texte pour que tu choisisses lequel activer ; le changement de position dit dans quelle position le monstre passe. Les boutons du haut changent de phase ou finissent le tour. Quand tu peux
 répondre en chaîne, tes cartes concernées s'allument de la même façon, avec un bouton « Ne rien activer ». Quand
 il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Survole une carte pour lire son texte.
 

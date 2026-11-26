@@ -1,6 +1,23 @@
 // Questions du moteur au joueur humain, traduites pour l'interface : chaque option porte sa réponse déjà préparée.
 import { IndexResponse } from "ygopro-msg-encode";
-import { POS } from "./constants.js";
+import { C, POS } from "./constants.js";
+
+// Effet activable : son nom court et le paragraphe du texte de la carte qui le décrit (si on le retrouve).
+function effectInfo(T, c) {
+    const name = T.desc(c.desc, c.code);
+    const generic = name === `Effet de ${T.name(Math.floor(c.desc / 16))}`;   // pas de nom court : numéro de l'effet
+    return { name: generic ? `Effet ${(c.desc % 16) + 1}` : name, text: T.effectText(c.desc, c.code) };
+}
+
+// Changement de position : dit dans quelle position le monstre va passer.
+function repos(game, c) {
+    let pos = 0;
+    try { pos = game.duel.queryCard({ player: c.controller, location: c.location, sequence: c.sequence, queryFlag: C.QUERY_POSITION }).card.position; } catch { /* position inconnue */ }
+    if (pos & POS.FD_DEF) return "Invocation Flip (face recto en attaque)";
+    if (pos & POS.FU_DEF) return "Passer en Position d'Attaque";
+    if (pos & POS.FU_ATK) return "Passer en Position de Défense";
+    return "Changer de position";
+}
 
 // Traduit une question du moteur en question pour l'interface ; la réponse est préparée ici.
 export function question(game, m) {
@@ -13,13 +30,15 @@ export function question(game, m) {
             const acts = [];
             const add = (list, label, type) => (list || []).forEach((c, i) => acts.push({
                 key: key(c), code: c.code, label: typeof label === "function" ? label(c) : label,
+                effect: isEffect(type) ? effectInfo(T, c) : null,
                 response: m.prepareResponse(type, IndexResponse(i)),
             }));
             const effect = (c) => `Activer : ${T.desc(c.desc, c.code)}`;
+            const isEffect = (type) => (kind === "SelectIdleCmd" ? type === 5 : type === 0);
             if (kind === "SelectIdleCmd") {
                 add(m.summonableCards, "Invocation Normale", 0);
                 add(m.spSummonableCards, "Invocation Spéciale", 1);
-                add(m.reposableCards, "Changer de position", 2);
+                add(m.reposableCards, (c) => repos(game, c), 2);
                 add(m.msetableCards, "Poser face verso", 3);
                 add(m.ssetableCards, "Poser", 4);
                 add(m.activatableCards, effect, 5);
@@ -39,7 +58,8 @@ export function question(game, m) {
             const forced = m.chains.some((c) => c.forced);
             return {
                 kind: "actions", chain: true,
-                actions: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: `Activer : ${T.desc(c.desc, c.code)}`, response: m.prepareResponse(IndexResponse(i)) })),
+                actions: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: `Activer : ${T.desc(c.desc, c.code)}`,
+                    effect: effectInfo(T, c), response: m.prepareResponse(IndexResponse(i)) })),
                 buttons: forced ? [] : [{ label: "Ne rien activer", main: true, response: m.prepareResponse(null) }],
             };
         }

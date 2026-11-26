@@ -112,9 +112,14 @@ export class Game {
             case "FlipSummoning": this.say(m.controller, `Invocation Flip de « ${T.name(m.code)} ».`); break;
             case "Set": break;
             case "Move": this.move(m); break;
-            case "Chaining":
-                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}.`, m.controller === me ? "" : "bot");
+            case "Chaining": {
+                // nom de l'effet quand la carte en a un (« Effet de bannissement »…), pas les libellés génériques
+                const what = T.desc(m.desc, m.code);
+                const named = m.desc >= 10000 && !what.startsWith("«") && !["Effet", "Activer", "Activer l'effet"].includes(what)
+                    && what !== `Effet de ${T.name(Math.floor(m.desc / 16))}` ? ` : ${what}` : "";
+                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}.`, m.controller === me ? "" : "bot");
                 break;
+            }
             case "ChainNegated": case "ChainDisabled":
                 this.say(null, `Le maillon ${m.chainCount} est annulé.`, "cut"); break;
             case "Damage": this.say(m.player, `${m.player === me ? "Tu perds" : this.botName + " perd"} ${m.value} PV.`, "cut"); break;

@@ -9,7 +9,7 @@ export default function (component) {
         root.className = "dm";
         parentElement.appendChild(root);
         root.addEventListener("click", (e) => {   // clic hors d'un menu : on le ferme
-            if (root.ui && root.ui.menu && !e.target.closest(".menu")) { root.ui.menu = null; render(root); }
+            if (root.ui && root.ui.menu && !e.target.closest(".menu, .effbox")) { root.ui.menu = null; render(root); }
         });
     }
     window.__dmRoot = root;

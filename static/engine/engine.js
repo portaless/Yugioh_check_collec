@@ -24780,6 +24780,22 @@ var Bot = class {
 };
 
 // src/questions.js
+function effectInfo(T, c) {
+  const name = T.desc(c.desc, c.code);
+  const generic = name === `Effet de ${T.name(Math.floor(c.desc / 16))}`;
+  return { name: generic ? `Effet ${c.desc % 16 + 1}` : name, text: T.effectText(c.desc, c.code) };
+}
+function repos(game, c) {
+  let pos = 0;
+  try {
+    pos = game.duel.queryCard({ player: c.controller, location: c.location, sequence: c.sequence, queryFlag: C.QUERY_POSITION }).card.position;
+  } catch {
+  }
+  if (pos & POS.FD_DEF) return "Invocation Flip (face recto en attaque)";
+  if (pos & POS.FU_DEF) return "Passer en Position d'Attaque";
+  if (pos & POS.FU_ATK) return "Passer en Position de D\xE9fense";
+  return "Changer de position";
+}
 function question(game, m) {
   const T = game.T;
   const kind = m.constructor.name.replace("YGOProMsg", "");
@@ -24794,13 +24810,15 @@ function question(game, m) {
         key: key(c),
         code: c.code,
         label: typeof label === "function" ? label(c) : label,
+        effect: isEffect(type) ? effectInfo(T, c) : null,
         response: m.prepareResponse(type, IndexResponse(i))
       }));
       const effect = (c) => `Activer : ${T.desc(c.desc, c.code)}`;
+      const isEffect = (type) => kind === "SelectIdleCmd" ? type === 5 : type === 0;
       if (kind === "SelectIdleCmd") {
         add(m.summonableCards, "Invocation Normale", 0);
         add(m.spSummonableCards, "Invocation Sp\xE9ciale", 1);
-        add(m.reposableCards, "Changer de position", 2);
+        add(m.reposableCards, (c) => repos(game, c), 2);
         add(m.msetableCards, "Poser face verso", 3);
         add(m.ssetableCards, "Poser", 4);
         add(m.activatableCards, effect, 5);
@@ -24820,7 +24838,13 @@ function question(game, m) {
       return {
         kind: "actions",
         chain: true,
-        actions: m.chains.map((c, i) => ({ key: key(c), code: c.code, label: `Activer : ${T.desc(c.desc, c.code)}`, response: m.prepareResponse(IndexResponse(i)) })),
+        actions: m.chains.map((c, i) => ({
+          key: key(c),
+          code: c.code,
+          label: `Activer : ${T.desc(c.desc, c.code)}`,
+          effect: effectInfo(T, c),
+          response: m.prepareResponse(IndexResponse(i))
+        })),
         buttons: forced ? [] : [{ label: "Ne rien activer", main: true, response: m.prepareResponse(null) }]
       };
     }
@@ -24907,6 +24931,8 @@ function question(game, m) {
 }
 
 // src/texts.js
+var norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+var stems = (s) => (norm(s).match(/[a-z]{4,}/g) || []).map((w) => w.slice(0, 5));
 function makeTexts(engine, myNames = {}) {
   const name = (code) => myNames[code] || (engine.texts.get(code) || [])[1] || `#${code}`;
   const desc = (d, code) => {
@@ -24919,7 +24945,33 @@ function makeTexts(engine, myNames = {}) {
     }
     return engine.system.get(d) || (d ? `Option ${d}` : "Activer l'effet");
   };
-  return { name, desc };
+  const effects = (code) => {
+    const text = (engine.texts.get(code) || [])[2] || "";
+    const out = [];
+    text.split(/\r?\n/).forEach((line, i) => {
+      const t = line.trim();
+      if (!t || i === 0 && line.includes("	")) return;
+      if (out.length && /^Vous ne pouvez (utiliser|activer)/.test(t)) out[out.length - 1] += " " + t;
+      else out.push(t);
+    });
+    return out;
+  };
+  const effectText = (d, code) => {
+    const list = effects(code);
+    if (list.length === 1) return list[0];
+    if (d < 1e4 || Math.floor(d / 16) !== code) return null;
+    const n = d % 16, label = (engine.texts.get(code) || [])[3 + n] || "";
+    const keys = stems(label).filter((w) => !["effet", "activ"].includes(w));
+    const active = list.filter((p) => /[:;]/.test(p));
+    if (!keys.length) return active[n] || null;
+    const scores = list.map((p) => {
+      const ws = new Set(stems(p));
+      return keys.filter((k) => ws.has(k)).length;
+    });
+    const best = Math.max(...scores);
+    return best > 0 && scores.filter((s) => s === best).length === 1 ? list[scores.indexOf(best)] : active[n] || null;
+  };
+  return { name, desc, effects, effectText };
 }
 
 // src/game.js
@@ -25065,9 +25117,12 @@ var Game = class {
       case "Move":
         this.move(m);
         break;
-      case "Chaining":
-        this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} \xAB ${T.name(m.code)} \xBB${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}.`, m.controller === me ? "" : "bot");
+      case "Chaining": {
+        const what = T.desc(m.desc, m.code);
+        const named = m.desc >= 1e4 && !what.startsWith("\xAB") && !["Effet", "Activer", "Activer l'effet"].includes(what) && what !== `Effet de ${T.name(Math.floor(m.desc / 16))}` ? ` : ${what}` : "";
+        this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} \xAB ${T.name(m.code)} \xBB${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}.`, m.controller === me ? "" : "bot");
         break;
+      }
       case "ChainNegated":
       case "ChainDisabled":
         this.say(null, `Le maillon ${m.chainCount} est annul\xE9.`, "cut");

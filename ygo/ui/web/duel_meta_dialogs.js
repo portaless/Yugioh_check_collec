@@ -39,6 +39,17 @@ function where(root, c) {
     return `${mine ? "à toi" : "adverse"} · ${loc}`;
 }
 
+// Carte qui a plusieurs effets (ou un effet et d'autres actions) : chaque choix avec le texte de l'effet.
+function effectsHTML(root, acts) {
+    const i = info(root, acts[0].code);
+    const missing = acts.some((a) => a.effect && !a.effect.text);   // effet non retrouvé : texte complet affiché
+    const items = acts.map((a, k) => `<button class="eff" data-act="${k}"><b>${esc(a.effect ? a.effect.name : a.label)}</b>`
+        + `${a.effect && a.effect.text ? `<span>${esc(a.effect.text)}</span>` : ""}</button>`).join("");
+    return `<div class="modal"><div class="box effbox"><div class="yn">${i.img ? `<img src="${i.img}" alt="">` : ""}<div>`
+        + `<div class="mt">${esc(i.name)} : que veux-tu faire ?</div>${missing ? `<div class="ms">${esc(i.text)}</div>` : ""}</div></div>`
+        + `<div class="effs">${items}</div><div class="mb"><button data-close="1">Annuler (Échap)</button></div></div></div>`;
+}
+
 function viewerHTML(root) {
     const V = root.ui.viewer;
     if (!V) return "";
@@ -75,7 +86,8 @@ function render(root) {
     if (U.menu) {
         const acts = P && P.kind === "actions" ? P.actions.filter((a) => a.key === U.menu.key) : [];
         root.menuActs = acts;
-        if (acts.length) menu = `<div class="menu" style="left:${U.menu.x}px;top:${U.menu.y}px">${acts.map((a, k) => `<button data-act="${k}">${esc(a.label)}</button>`).join("")}</div>`;
+        if (acts.length) menu = U.menu.effects ? effectsHTML(root, acts)
+            : `<div class="menu" style="left:${U.menu.x}px;top:${U.menu.y}px">${acts.map((a, k) => `<button data-act="${k}">${esc(a.label)}</button>`).join("")}</div>`;
     }
     root.innerHTML = `<div class="top"><div class="status">${status}</div><div class="ctrl">${buttons}`
         + `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`

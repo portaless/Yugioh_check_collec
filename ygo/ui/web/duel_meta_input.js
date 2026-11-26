@@ -25,7 +25,7 @@ function bind(root) {
         });
     });
     // clic sur une carte jouable : une seule action possible, elle est jouée tout de suite ; sinon ses actions
-    // s'affichent en boutons juste au-dessus de la carte
+    // s'affichent en boutons juste au-dessus de la carte, ou dans une fenêtre qui détaille chaque effet
     root.querySelectorAll(".card.can[data-key]").forEach((el) => el.addEventListener("click", (e) => {
         e.stopPropagation();
         const acts = P.actions.filter((a) => a.key === el.dataset.key);
@@ -35,7 +35,7 @@ function bind(root) {
             return answer(acts[0].response);
         }
         const r = el.getBoundingClientRect(), box = root.getBoundingClientRect();
-        U.menu = { key: el.dataset.key, x: Math.max(0, Math.min(r.left - box.left + r.width / 2 - 120, box.width - 240)), y: r.top - box.top - 4 };
+        U.menu = { key: el.dataset.key, effects: acts.some((a) => a.effect), x: Math.max(0, Math.min(r.left - box.left + r.width / 2 - 120, box.width - 240)), y: r.top - box.top - 4 };
         render(root);
     }));
     root.querySelectorAll("[data-pile]").forEach((el) => el.addEventListener("click", (e) => {
@@ -83,7 +83,7 @@ function bind(root) {
         ann.addEventListener("input", () => { U.query = ann.value; render(root); });
     }
     root.querySelectorAll("[data-ann]").forEach((el) => el.addEventListener("click", () => { U.query = ""; answer(P.build(+el.dataset.ann)); }));
-    root.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", () => { U.viewer = null; render(root); }));
+    root.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", () => { U.viewer = null; U.menu = null; render(root); }));
     root.querySelectorAll("[data-peek]").forEach((el) => el.addEventListener("change", () => { U.peek = el.checked; render(root); }));
     root.querySelectorAll("[data-full]").forEach((el) => el.addEventListener("click", async () => {
         // plein écran du navigateur ; s'il est refusé, le plateau couvre toute la fenêtre
