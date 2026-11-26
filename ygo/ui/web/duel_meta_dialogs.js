@@ -89,11 +89,13 @@ function render(root) {
         if (acts.length) menu = U.menu.effects ? effectsHTML(root, acts)
             : `<div class="menu" style="left:${U.menu.x}px;top:${U.menu.y}px">${acts.map((a, k) => `<button data-act="${k}">${esc(a.label)}</button>`).join("")}</div>`;
     }
+    const notice = U.notice ? `<div class="notice">${esc(U.notice)}</div>` : "";
+    U.notice = null;   // affiché une fois, jusqu'au prochain affichage
     root.innerHTML = `<div class="top"><div class="status">${status}</div><div class="ctrl">${buttons}`
         + `<label class="peek"><input type="checkbox" data-peek="1" ${U.peek ? "checked" : ""}> Voir sa main</label>`
         + `<button data-full="1">${document.fullscreenElement === root || root.classList.contains("full") ? "Quitter le plein écran" : "Plein écran"}</button>`
         + `<button data-again="1">${S.over ? "Rejouer" : "Recommencer"}</button></div></div>`
-        + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
+        + notice + `<div class="layout">${detailHTML(root)}<div class="fieldwrap"><div class="field">${sideHTML(root, "bot")}${emzHTML(root)}${sideHTML(root, "me")}</div>${promptHTML(root)}</div>`
         + `<div class="log">${log}</div></div>${viewerHTML(root)}${menu}`;
     if (P && P.kind === "actions") {
         // effet d'une carte qui n'est pas affichée (matériel Xyz…) : proposé en bouton dans la barre du haut

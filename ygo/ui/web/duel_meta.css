@@ -164,3 +164,7 @@
 
 /* texte de l'effet dans la question « Activer l'effet de… ? » */
 .dm .yn > div { white-space: pre-line; line-height: 1.4; max-height: 16rem; overflow-y: auto; }
+
+/* explication ponctuelle (ex. monstre qui ne peut pas changer de position) */
+.dm .notice { margin: 0 0 .6rem; padding: .45rem .7rem; border: 1px solid var(--gold); border-radius: .5rem;
+              background: rgba(227,179,65,.08); font-size: .85rem; }

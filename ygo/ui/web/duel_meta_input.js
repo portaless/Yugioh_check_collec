@@ -38,6 +38,15 @@ function bind(root) {
         U.menu = { key: el.dataset.key, effects: acts.some((a) => a.effect), x: Math.max(0, Math.min(r.left - box.left + r.width / 2 - 120, box.width - 240)), y: r.top - box.top - 4 };
         render(root);
     }));
+    // clic sur un de tes monstres qui ne peut rien faire : on explique pourquoi (règle du changement de position)
+    root.querySelectorAll(`.slot[data-zone^="${root.game.me}:${LOC.MZONE}:"] .card:not(.can)[data-key]`).forEach((el) => el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const main = P && P.kind === "actions" && !P.chain && /Main/.test(root.state.phase || "");
+        U.notice = !main ? "Le changement de position se fait pendant ta Main Phase, quand le moteur te donne la main."
+            : "Ce monstre ne peut pas changer de position maintenant : pas le tour où il a été invoqué ou posé, "
+            + "pas après avoir attaqué, et une seule fois par tour.";
+        render(root);
+    }));
     root.querySelectorAll("[data-pile]").forEach((el) => el.addEventListener("click", (e) => {
         e.stopPropagation();
         const [who, loc] = el.dataset.pile.split(":");
