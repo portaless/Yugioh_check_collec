@@ -134,7 +134,7 @@ export class Game {
                 const what = T.desc(m.desc, m.code);
                 const named = m.desc >= 10000 && !what.startsWith("«") && !["Effet", "Activer", "Activer l'effet"].includes(what)
                     && what !== `Effet de ${T.name(Math.floor(m.desc / 16))}` ? ` : ${what}` : "";
-                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}${m.controller !== me && this.turnPlayer === me ? " pendant ton tour" : ""}.`, m.controller === me ? "" : "bot");
+                this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} « ${T.name(m.code)} »${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}${m.controller !== me && this.turnPlayer === me ? ` pendant ton tour (${this.phase})` : ""}.`, m.controller === me ? "" : "bot");
                 break;
             }
             case "ChainNegated": case "ChainDisabled":

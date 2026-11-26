@@ -25148,7 +25148,7 @@ var Game = class {
       case "Chaining": {
         const what = T.desc(m.desc, m.code);
         const named = m.desc >= 1e4 && !what.startsWith("\xAB") && !["Effet", "Activer", "Activer l'effet"].includes(what) && what !== `Effet de ${T.name(Math.floor(m.desc / 16))}` ? ` : ${what}` : "";
-        this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} \xAB ${T.name(m.code)} \xBB${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}${m.controller !== me && this.turnPlayer === me ? " pendant ton tour" : ""}.`, m.controller === me ? "" : "bot");
+        this.say(m.controller, `${who(m.controller)} ${m.controller === me ? "actives" : "active"} \xAB ${T.name(m.code)} \xBB${named}${m.chainCount > 1 ? ` (maillon ${m.chainCount})` : ""}${m.controller !== me && this.turnPlayer === me ? ` pendant ton tour (${this.phase})` : ""}.`, m.controller === me ? "" : "bot");
         break;
       }
       case "ChainNegated":
