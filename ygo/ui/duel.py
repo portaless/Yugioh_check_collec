@@ -1,20 +1,19 @@
-"""Page Duel de decks : KPI face à face, duel simulé sur un plateau, leviers."""
+"""Page Duel de decks : KPI face à face, duel joué sur le plateau du moteur de règles, leviers."""
 
 from html import escape
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 from ygo import analysis as A
 from ygo import builds
-from ygo import duel as D
+from ygo import playtest as P
 from ygo import simulation as S
 from ygo.fr import ZONES
 from ygo.ui.card_sheet import cards_gallery
 from ygo.ui.core import con
 from ygo.ui.decks import deck_counts, deck_kpis, deck_plan, deck_signature, plan_selector
-from ygo.ui.duel_board import duel_board
+from ygo.ui.duel_meta import engine_duel, engine_help, engine_ready
 from ygo.ui.style import TONES, page_header, status_tile
 
 
@@ -96,8 +95,8 @@ def deck_stats(deck_id: int, signature: tuple) -> tuple:
 def page_duel():
     page_header(
         "Duel de decks",
-        "Deux decks face à face : KPI sur 20 000 mains simulées, un duel joué sur le plateau tour par tour, et les "
-        "leviers d'amélioration.",
+        "Deux decks face à face : KPI sur 20 000 mains simulées, un duel joué contre le bot avec les vraies règles, "
+        "et les leviers d'amélioration.",
         "Analyse",
     )
     decks = {r["name"]: r["id"] for r in con.execute("SELECT id, name FROM decks ORDER BY name")}
@@ -151,33 +150,21 @@ Ce modèle ne joue pas les combos en entier : il mesure la régularité des main
                 "good" if all(legal.values()) else "bad",
                 " · ".join(f"{n} : {'légal' if ok else 'illégal'}" for n, ok in legal.items()))
 
-    # 2. Duel simulé
-    st.header("2. Duel simulé")
-    st.caption("Un duel tiré au hasard, joué sur le plateau tour par tour : avance avec « Suivant » ou les flèches du "
-               "clavier, ou clique sur une ligne du journal. Relance plusieurs duels : les pourcentages du verdict "
-               "résument des milliers de parties comme celle-ci.")
-    c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
-    starts = c1.segmented_control("Qui commence ?", ["Pile ou face", name_a, name_b], default="Pile ou face",
-                                  key="duel_starts") or "Pile ou face"
-    if c2.button("Nouveau duel", type="primary", width="stretch"):
-        st.session_state["duel_seed"] = st.session_state.get("duel_seed", 0) + 1
-    seed = st.session_state.get("duel_seed", 0)
-    a_first = bool(np.random.default_rng((seed, 7)).integers(2)) if starts == "Pile ou face" else starts == name_a
-    game = D.play(cards_a, cards_b, (name_a, name_b), (plans[name_a], plans[name_b]), seed, a_first)
-    duel_board(game, name_a if a_first else name_b, key=f"{name_a}|{name_b}|{seed}|{a_first}")
-    with st.expander("Règles du duel simulé"):
-        st.markdown("""
-- **Tour 1** : le joueur qui commence (5 cartes, sans pioche) joue ses starters un par un. L'adversaire répond avec
-  ses interruptions depuis la main (Floraison de Cendres, Nibiru…) : chacune coupe la ligne d'un starter.
-  Le premier starter qui passe déroule le moteur : les cartes du moteur sortent du deck, puis un monstre de
-  l'Extra Deck arrive. Le joueur pose ensuite ses Pièges.
-- **Tour 2** : l'autre joueur pioche (6 cartes), détruit des cartes posées avec ses cartes de destruction, puis
-  lance ses starters. Chaque Piège posé encore là et chaque interruption gardée en main coupe une ligne.
-- **Bilan** après le tour 2 : le plateau du premier a-t-il tenu, ou le second a-t-il fait son retour ?
-
-Le duel ne joue pas les combos carte par carte ni les combats : comme les chiffres du verdict, il mesure si les
-mains permettent de lancer le moteur et de gêner l'adversaire. Les deux mains sont visibles, pour l'analyse.
-""")
+    # 2. Duel sur le plateau
+    st.header("2. Duel joué")
+    st.caption("Le même plateau et le même moteur de règles que « Duel contre la méta » : tu joues un des deux "
+               "decks, le bot joue l'autre. Effets, chaînes et combats sont appliqués comme en duel réel.")
+    if engine_ready():
+        c1, c2 = st.columns(2)
+        mine = c1.segmented_control("Tu joues", [name_a, name_b], default=name_a, key="duel_side") or name_a
+        other = name_b if mine == name_a else name_a
+        starts = c2.segmented_control("Qui commence ?", ["Pile ou face", mine, other], default="Pile ou face",
+                                      key="duel_starts") or "Pile ou face"
+        cards = {name_a: cards_a, name_b: cards_b}
+        bot = (other, P.from_deck(cards[other], "main"), P.from_deck(cards[other], "extra"))
+        first = "coin" if starts == "Pile ou face" else "me" if starts == mine else "bot"
+        engine_duel((mine, cards[mine]), bot, first, f"{mine}|{other}|{starts}", "duel_decks")
+        engine_help(other)
 
     # 3. Pourquoi
     st.header("3. Pourquoi : la composition")

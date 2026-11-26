@@ -31,17 +31,75 @@ def _images(cards: list[dict]) -> dict[int, str]:
         return {i: src for i, src in zip(unique, pool.map(thumb_src, unique, unique.values())) if src}
 
 
+def engine_ready() -> bool:
+    """Données du moteur présentes ; sinon propose de les télécharger (renvoie False)."""
+    if engine_data.ready():
+        return True
+    st.info("Le moteur de règles a besoin de ses données : les scripts qui programment l'effet de chaque carte "
+            "et sa base de cartes en français (environ 25 Mo, une seule fois).")
+    if st.button("Télécharger les données du moteur", type="primary"):
+        with st.spinner("Téléchargement des scripts des cartes…"):
+            engine_data.download(log=lambda _: None)
+        st.rerun()
+    return False
+
+
+def engine_duel(me: tuple[str, list[dict]], bot: tuple[str, list[dict], list[dict]], first: str, key: str,
+                component_key: str):
+    """Plateau du moteur de règles : `me` = (nom, cartes du deck de l'appli) joué par toi, `bot` = (nom, Main
+    Deck, Extra Deck) joué par le bot ; first : "me", "bot" ou "coin"."""
+    my_main, my_extra = T.from_deck(me[1], "main"), T.from_deck(me[1], "extra")
+    if len(my_main) < 40:
+        st.warning(f"« {me[0]} » n'a que {len(my_main)} cartes dans son Main Deck : complète-le dans le Constructeur.")
+        return
+    bot_name, bot_main, bot_extra = bot
+    imgs = _images(my_main + my_extra + bot_main + bot_extra)
+    payload = T.payload((my_main, my_extra), (bot_main, bot_extra), imgs) | {
+        "botName": bot_name, "first": first, "seed": 0,
+        "engine": int(ENGINE_JS.stat().st_mtime),   # version du moteur, pour que le navigateur recharge un moteur mis à jour
+    }
+    payload["key"] = key
+    DUEL(data=payload, key=component_key)
+
+
+def engine_help(bot_deck: str):
+    """Mode d'emploi du plateau du moteur (pages Duel contre la méta et Duel de decks)."""
+    with st.expander("Comment jouer et comment joue le bot"):
+        st.markdown(f"""
+**Les règles sont appliquées par le moteur** (YGOPro, le moteur open source des simulateurs communautaires) : chaque
+carte a son script qui programme son effet. Tu ne peux faire que des actions légales, et les effets se résolvent
+automatiquement, chaînes comprises.
+
+**Toi** : les cartes qui peuvent agir s'allument en doré. Clique dessus : si une seule action est possible
+(activer son effet, attaquer…), elle est jouée tout de suite ; sinon ses actions s'affichent juste au-dessus
+d'elle (invoquer, poser). Si la carte a un effet parmi ses choix, une fenêtre détaille chaque effet avec son
+texte pour que tu choisisses lequel activer ; le changement de position dit dans quelle position le monstre passe.
+Un monstre change de position pendant tes Main Phases, une fois par tour, mais pas le tour où il a été invoqué ou
+posé, ni après avoir attaqué : si tu cliques sur un monstre qui ne peut pas, l'appli te dit pourquoi.
+Les boutons du haut changent de phase ou finissent le tour. Quand tu peux répondre en chaîne, tes cartes concernées s'allument de la même façon, avec un bouton « Ne rien activer ». Quand
+il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Survole une carte pour lire son texte.
+
+**Échap** annule ce qui n'est pas encore joué : il ferme les boutons d'une carte ou une pile ouverte, efface les
+zones déjà cliquées, et renonce à un effet tant que le moteur l'autorise (choix des cartes à payer ou à cibler au
+moment de l'activation). Une fois l'invocation ou l'activation lancée, le moteur ne permet plus de revenir en
+arrière. Le bouton **Plein écran** agrandit le plateau ; Échap ou le même bouton le referme.
+
+Couleurs du terrain : orange pour les Zones Monstre, vert pour les Zones Magie & Piège, bleu pour la Zone Terrain,
+violet pour les Zones Monstre Extra et l'Extra Deck.
+
+**Le bot** joue la liste « {bot_deck} » par l'intermédiaire du même moteur : il active ses effets dès qu'il le peut,
+utilise ses interruptions dès qu'elles sont possibles, invoque et attaque. Sa stratégie est simple, mais il ne
+peut pas tricher.
+
+Scripts des cartes : projet ygopro-scripts (GPL-2.0) ; base de cartes et textes : mycard/ygopro-database.
+""")
+
+
 def page_duel_meta():
     page_header("Duel contre la méta",
                 "Joue ton deck contre une liste qui gagne en tournoi, jouée par un bot. Le moteur de règles applique "
                 "les effets, les chaînes et les combats comme en duel réel.", "Analyse")
-    if not engine_data.ready():
-        st.info("Le moteur de règles a besoin de ses données : les scripts qui programment l'effet de chaque carte "
-                "et sa base de cartes en français (environ 25 Mo, une seule fois).")
-        if st.button("Télécharger les données du moteur", type="primary"):
-            with st.spinner("Téléchargement des scripts des cartes…"):
-                engine_data.download(log=lambda _: None)
-            st.rerun()
+    if not engine_ready():
         return
     data = meta.load()
     if not data:
@@ -62,49 +120,11 @@ def page_duel_meta():
     opp_name, lists = arch[k]
     opp = lists[0]
     my_cards = A.deck_cards(con, decks[mine])
-    my_main, my_extra = T.from_deck(my_cards, "main"), T.from_deck(my_cards, "extra")
-    if len(my_main) < 40:
-        st.warning(f"« {mine} » n'a que {len(my_main)} cartes dans son Main Deck : complète-le dans le Constructeur.")
-        return
-    opp_main, opp_extra = meta.resolve(con, opp["main"]), meta.resolve(con, opp["extra"])
-    imgs = _images(my_main + my_extra + opp_main + opp_extra)
-    payload = T.payload((my_main, my_extra), (opp_main, opp_extra), imgs) | {
-        "botName": opp_name, "first": {"Moi": "me", "Lui": "bot"}.get(first, "coin"),
-        "seed": st.session_state.get("duel_meta_seed", 0),
-        "engine": int(ENGINE_JS.stat().st_mtime),   # version du moteur, pour que le navigateur recharge un moteur mis à jour
-    }
-    payload["key"] = f"{mine}|{opp['id']}|{first}|{payload['seed']}"
     if opp.get("url"):
         st.caption(f"Liste jouée : [{opp_name}]({opp['url']})"
                    + (f", {opp['placement']} de {opp['tournament']}" if opp.get("tournament") else "") + ".")
-    DUEL(data=payload, key="duel_meta")
+    opp_main, opp_extra = meta.resolve(con, opp["main"]), meta.resolve(con, opp["extra"])
+    engine_duel((mine, my_cards), (opp_name, opp_main, opp_extra), {"Moi": "me", "Lui": "bot"}.get(first, "coin"),
+                f"{mine}|{opp['id']}|{first}", "duel_meta")
 
-    with st.expander("Comment jouer et comment joue le bot"):
-        st.markdown(f"""
-**Les règles sont appliquées par le moteur** (YGOPro, le moteur open source des simulateurs communautaires) : chaque
-carte a son script qui programme son effet. Tu ne peux faire que des actions légales, et les effets se résolvent
-automatiquement, chaînes comprises.
-
-**Toi** : les cartes qui peuvent agir s'allument en doré. Clique dessus : si une seule action est possible
-(activer son effet, attaquer…), elle est jouée tout de suite ; sinon ses actions s'affichent juste au-dessus
-d'elle (invoquer, poser). Si la carte a un effet parmi ses choix, une fenêtre détaille chaque effet avec son
-texte pour que tu choisisses lequel activer ; le changement de position dit dans quelle position le monstre passe.
-Un monstre change de position pendant tes Main Phases, une fois par tour, mais pas le tour où il a été invoqué ou
-posé, ni après avoir attaqué : si tu cliques sur un monstre qui ne peut pas, l'appli te dit pourquoi. Les boutons du haut changent de phase ou finissent le tour. Quand tu peux
-répondre en chaîne, tes cartes concernées s'allument de la même façon, avec un bouton « Ne rien activer ». Quand
-il faut choisir des cartes, une zone ou une position, une fenêtre s'ouvre. Survole une carte pour lire son texte.
-
-**Échap** annule ce qui n'est pas encore joué : il ferme les boutons d'une carte ou une pile ouverte, efface les
-zones déjà cliquées, et renonce à un effet tant que le moteur l'autorise (choix des cartes à payer ou à cibler au
-moment de l'activation). Une fois l'invocation ou l'activation lancée, le moteur ne permet plus de revenir en
-arrière. Le bouton **Plein écran** agrandit le plateau ; Échap ou le même bouton le referme.
-
-Couleurs du terrain : orange pour les Zones Monstre, vert pour les Zones Magie & Piège, bleu pour la Zone Terrain,
-violet pour les Zones Monstre Extra et l'Extra Deck.
-
-**Le bot** joue la liste « {opp_name} » par l'intermédiaire du même moteur : il active ses effets dès qu'il le peut,
-utilise ses interruptions dès qu'elles sont possibles, invoque et attaque. Sa stratégie est simple, mais il ne
-peut pas tricher.
-
-Scripts des cartes : projet ygopro-scripts (GPL-2.0) ; base de cartes et textes : mycard/ygopro-database.
-""")
+    engine_help(opp_name)

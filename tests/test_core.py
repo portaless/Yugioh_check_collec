@@ -206,24 +206,6 @@ def test_extra_deck_respects_size_forced_and_excluded_cards(con):
     assert O.build_extra(con, main, opts) == {33: 1, 30: 1}  # Utopie forcée, puis la place restante
 
 
-def test_simulated_duel_is_played_turn_by_turn_on_a_legal_board(by_id):
-    from ygo import duel as D
-    deck = [dict(c, zone="extra" if c["frame_type"] in ("link", "synchro", "xyz") else "main",
-                 quantity=3 if c["frame_type"] not in ("link", "synchro", "xyz") else 1) for c in by_id.values()]
-    for seed in range(40):
-        game = D.play(deck, deck, ("A", "B"), (MEKK, MEKK), seed, seed % 2 == 0)
-        steps = game["steps"]
-        assert steps[0]["turn"] == 0 and steps[-1]["phase"] == "Bilan"
-        assert game["winner"] in ("A", "B", None)
-        for s in steps:
-            for side in (s["a"], s["b"]):
-                assert len(side["monsters"]) <= 5 and len(side["backrow"]) <= 5
-                total = sum(len(side[z]) for z in ("hand", "monsters", "backrow", "gy")) + side["deck"] + side["extra"]
-                assert total == sum(c["quantity"] for c in deck)   # aucune carte perdue ni dupliquée
-                assert all(c["frame_type"] not in ("spell", "trap")
-                           for c in side["monsters"] for c in [by_id[c["id"]]])
-
-
 def test_playable_duel_sends_card_codes_and_french_texts(by_id):
     from ygo import playtest as T
     deck = [dict(c, zone="main", quantity=2, desc_fr=None) for c in by_id.values()
