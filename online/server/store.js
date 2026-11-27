@@ -1,8 +1,8 @@
 // Stockage du serveur (SQLite intégré à Node) : identités des joueurs. Les collections, decks et amis sont dans
 // library.js, sur la même base.
 import { createHash, randomBytes } from "crypto";
-import { mkdirSync } from "fs";
-import { dirname } from "path";
+import { mkdirSync, readdirSync, rmSync } from "fs";
+import { dirname, join } from "path";
 import { DatabaseSync } from "node:sqlite";
 import { HttpError } from "./http.js";
 
@@ -37,6 +37,16 @@ export function openStore(path) {
         playerByPseudo(pseudo) {
             const row = db.prepare("SELECT id, pseudo FROM players WHERE pseudo = ?").get(String(pseudo || "").trim());
             return row ? { id: Number(row.id), pseudo: row.pseudo } : null;
+        },
+        // Copie cohérente de la base dans dir (base-AAAA-MM-JJ.sqlite), en gardant les « keep » plus récentes (EX-H1).
+        backup(dir, keep = 14) {
+            mkdirSync(dir, { recursive: true });
+            const file = join(dir, `base-${new Date().toISOString().slice(0, 10)}.sqlite`);
+            rmSync(file, { force: true });
+            db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+            const old = readdirSync(dir).filter((f) => /^base-\d{4}-\d{2}-\d{2}\.sqlite$/.test(f)).sort().slice(0, -keep);
+            for (const f of old) rmSync(join(dir, f));
+            return file;
         },
         close() { db.close(); },
     };

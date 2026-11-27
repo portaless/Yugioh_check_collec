@@ -1,0 +1,13 @@
+.git
+.venv
+data
+ma_collection
+static/cards
+static/cards_small
+static/engine/data
+engine/node_modules
+online/data
+online/server/out.cjs
+**/__pycache__
+*.xlsx
+*.csv

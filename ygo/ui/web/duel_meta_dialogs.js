@@ -88,7 +88,7 @@ function phasesHTML(root) {
     const S = root.state, P = root.ui.prompt;
     const now = PHASE_BAR.findIndex(([name]) => name === S.phase);
     const mine = S.turnPlayer === "me";
-    return `<div class="phases ${mine ? "me" : "bot"}"><span class="pw">${mine ? "Ton tour" : "Tour adverse"}</span>`
+    return `<div class="phases ${mine ? "me" : "bot"}"><span class="pw">${root.data.meName ? `Tour ${/^[aeiouyhéèêâî]/i.test(mine ? root.data.meName : root.data.botName) ? "d'" : "de "}${esc(mine ? root.data.meName : root.data.botName)}` : mine ? "Ton tour" : "Tour adverse"}</span>`
         + PHASE_BAR.map(([name, short], i) => {
             const k = P && P.kind === "actions" && !P.chain ? P.buttons.findIndex((b) => b.label === PHASE_BUTTON[name]) : -1;
             const cls = ["ph", i === now ? "now" : "", i < now ? "past" : "", k >= 0 ? "go" : ""].join(" ");
@@ -104,9 +104,12 @@ function render(root) {
     const P = U.prompt;
     const myTurn = S.turnPlayer === "me";
     const buttons = P && P.kind === "actions" ? P.buttons.map((b, k) => `<button class="${b.main ? "main" : ""}" data-btn="${k}">${esc(b.label)}</button>`).join("") : "";
-    const status = S.over ? esc(S.over) : `Tour ${S.turn || 1} · ${myTurn ? "à toi" : esc(root.data.botName)} · ${esc(S.phase || "")}`
-        + (P ? (P.kind === "actions" ? (P.chain ? " · tu peux répondre en chaîne : clique une carte dorée" : " · à toi d'agir") : " · choix demandé") : !myTurn ? " · l'adversaire joue…" : "");
-    const log = S.log.map((l) => `<div class="it ${l.tone}"><b>${l.who === "me" ? "Toi" : l.who === "bot" ? esc(root.data.botName) : "Duel"}</b> ${esc(l.text)}</div>`).join("");
+    const watching = !!root.data.meName;   // spectateur en ligne : les deux joueurs sont nommés
+    const status = S.over ? esc(S.over) : `Tour ${S.turn || 1} · ${myTurn ? (watching ? esc(root.data.meName) : "à toi") : esc(root.data.botName)} · ${esc(S.phase || "")}`
+        + (P ? (P.kind === "actions" ? (P.chain ? " · tu peux répondre en chaîne : clique une carte dorée" : " · à toi d'agir") : " · choix demandé")
+            : !myTurn && !watching ? " · l'adversaire joue…" : "");
+    const label = (l) => (l.name ? esc(l.name) : l.who === "me" ? "Toi" : l.who === "bot" ? esc(root.data.botName) : "Duel");
+    const log = S.log.map((l) => `<div class="it ${l.tone}"><b>${label(l)}</b> ${esc(l.text)}</div>`).join("");
     let menu = "";
     if (U.menu) {
         const acts = P && P.kind === "actions" ? P.actions.filter((a) => a.key === U.menu.key) : [];

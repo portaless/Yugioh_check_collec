@@ -1,8 +1,12 @@
 // Client en ligne, page Mon compte : clé à copier dans l'appli locale ou sur un autre appareil (EX-I2, EX-I3),
-// collection et decks publiés, visibilité (EX-C2) et amis autorisés à voir une collection « Amis » (EX-C3).
+// collection et decks publiés, visibilité (EX-C2), amis autorisés à voir une collection « Amis » (EX-C3) et historique
+// des duels (EX-D8).
 
 async function accountPage(player, notice = "") {
-    const mine = await api("GET", "/api/mine");
+    const [mine, { duels }] = await Promise.all([api("GET", "/api/mine"), api("GET", "/api/history")]);
+    const history = duels.map((d) => `<tr class="${d.result === "victoire" ? "win" : d.result === "défaite" ? "loss" : ""}">
+        <td>${day(d.date)}</td><td>${esc(d.opponent)}</td><td>${esc(d.myDeck)}</td><td>${esc(d.theirDeck)}</td>
+        <td><b>${d.result}</b>${d.reason ? ` <span class="mute">(${esc(d.reason)})</span>` : ""}</td><td>${d.turns}</td></tr>`).join("");
     const col = mine.collection;
     const radios = Object.entries(VISIBILITY).map(([v, label]) => `<label class="radio"><input type="radio" name="vis"
         value="${v}" ${col && col.visibility === v ? "checked" : ""} ${col ? "" : "disabled"}> ${label}</label>`).join("");
@@ -31,6 +35,9 @@ async function accountPage(player, notice = "") {
           <form id="addf"><input name="pseudo" maxlength="24" placeholder="Pseudo d'un joueur"><button>Ajouter</button></form>
           ${friends ? `<ul class="friends">${friends}</ul>` : `<p class="mute">Personne pour l'instant.</p>`}</div>
       </section>
+      <section class="card"><h2>Mes duels</h2>${history ? `<div class="scroll"><table class="history"><thead><tr><th>Date</th>
+        <th>Adversaire</th><th>Mon deck</th><th>Son deck</th><th>Résultat</th><th>Tours</th></tr></thead><tbody>${history}</tbody></table></div>`
+        : `<p class="mute">Aucun duel terminé pour l'instant.</p>`}</section>
       <section class="card">${loginHTML("Utiliser une autre identité (clé d'un autre appareil)")}</section>`;
     loginForm();
 

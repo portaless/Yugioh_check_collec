@@ -118,3 +118,39 @@ test("limites : trop de pseudos créés depuis la même adresse", async () => {
     for (let i = 0; i < 9; i++) codes.push((await client(server.url).post("/api/me", { pseudo: `Robot${i}` })).status);
     assert.ok(codes.includes(429));
 });
+
+test("liste des interdites : un deck avec Pot de Cupidité est refusé en TCG, accepté sans liste", async () => {
+    const banned = YDK.replace("#main\n", "#main\n55144522\n");   // 41 cartes dont une interdite
+    const refused = await carol.api.post("/api/duel", { mode: "create", ydk: banned, banlist: "tcg" });
+    assert.equal(refused.status, 400);
+    assert.match(refused.data.error, /interdite/);
+    assert.equal((await carol.api.post("/api/duel", { mode: "create", ydk: banned, banlist: "" })).status, 200);
+    await carol.api.post("/api/duel/cancel");
+    assert.ok((await client(server.url).get("/api/banlists")).data.banlists.some((b) => b.key === "tcg"));
+});
+
+test("spectateurs et historique : le spectateur ne voit aucune main, les deux joueurs retrouvent le duel", { timeout: 30000 }, async () => {
+    const { code } = (await alice.api.post("/api/duel", { mode: "create", ydk: YDK })).data;
+    await bob.api.post("/api/duel", { mode: "join", code, ydk: YDK });
+    assert.ok((await client(server.url).get("/api/duels")).data.duels.some((d) => d.code === code));
+    const [ea, eb] = [alice, bob].map((p) => stream(server.url, p.key));
+    const watcher = stream(server.url, null, `/api/duel/watch?code=${code}`);
+    const room = await watcher.next("room");
+    assert.deepEqual([room.watch, room.me, room.opponent], [true, "Alice", "Bob"]);
+    autoPlay(alice, ea);
+    autoPlay(bob, eb);
+    const seen = await watcher.next("state", (s) => s.state.turn >= 3);
+    for (const side of ["me", "bot"]) assert.ok(seen.state[side].hand.every((c) => !c || c.code === 0), `main ${side} visible`);
+    assert.equal(seen.prompt, null);
+    assert.ok(!seen.state.log.some((l) => /^Tu /.test(l.text)), "journal écrit à la 2e personne");
+    assert.ok(seen.state.log.some((l) => l.name === "Alice" || l.name === "Bob"));
+    await Promise.all([ea, eb].map((e) => e.next("state", (s) => s.over, 25000)));
+    const end = await watcher.next("state", (s) => s.over);
+    assert.match(end.state.over, /^(Alice|Bob) gagne le duel\.$/);
+    for (const p of [alice, bob]) {
+        const [last] = (await p.api.get("/api/history")).data.duels;
+        assert.equal(last.opponent, p === alice ? "Bob" : "Alice");
+        assert.ok(["victoire", "défaite"].includes(last.result));
+    }
+    [ea, eb, watcher].forEach((e) => e.close());
+});

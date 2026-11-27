@@ -69,5 +69,13 @@ button.small { padding: .15rem .55rem; font-size: .8rem; margin-left: .4rem; }
 #clock.late { color: var(--bad); font-weight: 700; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 .login { margin-top: 1rem; } .about h3 { margin-top: 1.1rem; }
+.btn.small { padding: .15rem .6rem; font-size: .8rem; margin-left: .5rem; }
+.live { list-style: none; padding: 0; margin: 0; } .live li { padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.banlist { margin-top: .9rem; }
+.scroll { overflow-x: auto; }
+.history { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.history th { text-align: left; color: var(--mute); font-weight: 600; border-bottom: 1px solid var(--line); padding: .35rem .5rem; }
+.history td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+.history tr.win b { color: var(--gold); } .history tr.loss b { color: var(--bad); }
 @media (max-width: 600px) { main { padding: 1rem; } form, .row { flex-direction: column; } .entry { grid-template-columns: 1fr; gap: .2rem; }
     .metrics { grid-template-columns: 1fr; } nav { margin-left: 0; } }

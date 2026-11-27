@@ -1,5 +1,6 @@
 // Client en ligne, collections partagées : annuaire (EX-C4) et page d'une collection avec recherche, filtres, nombre
 // d'exemplaires, valeur et decks visibles. Le serveur ne renvoie que ce que le visiteur a le droit de voir (EX-C2).
+// Sur la collection d'un autre, le filtre « me manque » compare avec ma propre collection publiée (EX-C5).
 
 const MAX_SHOWN = 600;   // au-delà, on demande d'affiner la recherche plutôt que d'afficher des milliers d'images
 const fold = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -27,6 +28,9 @@ async function collectionPage(pseudo, player) {
     const options = (values) => [...new Set(values)].filter(Boolean).sort((a, b) => a.localeCompare(b, "fr"))
         .map((v) => `<option>${esc(v)}</option>`).join("");
     const hasLocations = c.cards.some((x) => x.locations && x.locations.length);
+    // mes cartes, pour comparer (ma collection publiée, si j'en ai une)
+    const own = player && !c.mine ? await api("GET", `/api/collection?pseudo=${encodeURIComponent(player.pseudo)}`)
+        .then((m) => new Set(m.cards.map((x) => x.id))).catch(() => null) : null;
     app.innerHTML = `<section class="card"><h2>Collection de ${esc(c.pseudo)}</h2>
         <p class="mute">Publiée le ${day(c.published)} · ${VISIBILITY[c.visibility]}
         ${c.mine ? ` · <a href="/compte">changer qui la voit</a>` : ""}</p>
@@ -35,15 +39,18 @@ async function collectionPage(pseudo, player) {
           <select id="cat"><option value="">Toutes catégories</option>${options(c.cards.map((x) => x.category))}</select>
           <select id="rar"><option value="">Toutes raretés</option>${options(c.cards.flatMap((x) => x.rarities))}</select>
           ${hasLocations ? `<select id="loc"><option value="">Tous emplacements</option>${options(c.cards.flatMap((x) => (x.locations || []).map((l) => l[0])))}</select>` : ""}
+          ${own ? `<select id="miss"><option value="">Toutes ses cartes</option><option value="miss">Seulement celles qui me manquent</option>
+            <option value="both">Seulement celles que j'ai aussi</option></select>` : ""}
           <select id="sort"><option value="name">Tri : nom</option><option value="value">Tri : valeur</option><option value="qty">Tri : exemplaires</option></select>
         </div><div class="metrics" id="metrics"></div><div class="gal" id="gal"></div></section>
         ${decksHTML(c)}`;
-    const ids = ["q", "cat", "rar", "loc", "sort"];
+    const ids = ["q", "cat", "rar", "loc", "miss", "sort"];
     const show = () => {
         const v = Object.fromEntries(ids.map((id) => [id, app.querySelector(`#${id}`)?.value || ""]));
         const words = fold(v.q).split(/\s+/).filter(Boolean);
         const cards = c.cards.filter((x) => (!v.cat || x.category === v.cat) && (!v.rar || x.rarities.includes(v.rar))
             && (!v.loc || (x.locations || []).some((l) => l[0] === v.loc))
+            && (!v.miss || (v.miss === "miss") !== own.has(x.id))
             && words.every((w) => fold(`${x.name} ${x.type} ${x.archetype}`).includes(w)));
         const by = { name: (a, b) => a.name.localeCompare(b.name, "fr"), value: (a, b) => b.value - a.value, qty: (a, b) => b.qty - a.qty };
         cards.sort(by[v.sort] || by.name);

@@ -1,6 +1,7 @@
 // Duel entre deux joueurs humains, arbitré par le moteur sur le serveur (EX-D4). Il réutilise la partie du duel
 // local (engine/src/game.js) : chaque question du moteur va au joueur concerné, le journal est écrit pour chacun de
 // son point de vue, et ce que l'un ne doit pas voir (main, cartes face verso, Extra Deck adverses) n'est pas envoyé.
+// Les spectateurs (siège 2, EX-D7) ont leur propre journal, où chaque joueur est nommé, et ne voient aucune main.
 import { Game } from "../../engine/src/game.js";
 import { question } from "../../engine/src/questions.js";
 import { HttpError } from "./http.js";
@@ -8,25 +9,28 @@ import { HttpError } from "./http.js";
 const FACE_DOWN = 0xA, FACE_UP = 0x5;
 const ANSWER_MS = 3 * 60 * 1000;     // sans réponse dans ce délai quand c'est à lui d'agir, le joueur perd (EX-D6)
 const SHARED = ["turn", "turnPlayer", "phase", "hint", "over", "winner"];
+export const WATCH = 2;              // siège des spectateurs
 
 export class PvpGame extends Game {
     // decks[siège] = { main, extra } ; pseudos[siège] ; le siège 0 est le joueur « me » de la partie de base
     constructor(engine, { decks, pseudos, seed, firstSeat, answerMs = ANSWER_MS }) {
         super(engine, { me: decks[0], bot: decks[1], seed, meFirst: firstSeat === 0, botName: pseudos[1] });
         this.pseudos = pseudos;
-        this.logs = [[], []];
-        this.overs = [null, null];
+        this.logs = [[], [], []];
+        this.overs = [null, null, null];
+        this.result = null;                  // fin du duel : { winner: siège ou null, reason }
         this.pending = null;                 // question en attente : { seat, q, table, resolve, until }
         this.answerMs = answerMs;
         this.timer = null;
         this.hooks = { update() {}, prompt() {} };
         const who = (seat) => (seat === firstSeat ? "tu commences" : `${pseudos[firstSeat]} commence`);
-        this.logs.forEach((log, seat) => log.push({ who: null, text: `Pile ou face : ${who(seat)}.`, tone: "turn", turn: 0 }));
+        this.logs.forEach((log, seat) => log.push({ who: null, tone: "turn", turn: 0,
+            text: `Pile ou face : ${seat === WATCH ? `${pseudos[firstSeat]} commence` : who(seat)}.` }));
     }
 
     seatOf(player) { return player === this.me ? 0 : 1; }
 
-    // Chaque événement est raconté deux fois, une fois du point de vue de chaque joueur.
+    // Chaque événement est raconté trois fois : du point de vue de chaque joueur, puis pour les spectateurs.
     event(kind, m) {
         const before = pick(this, SHARED);
         this.log = this.logs[0]; this.botName = this.pseudos[1]; this.over = this.overs[0];
@@ -39,9 +43,35 @@ export class PvpGame extends Game {
         super.event(kind, m);
         this.overs[1] = this.over;
         this.swap();
+        Object.assign(this, before);
+        this.spectate(kind, m, after);
         Object.assign(this, after);
         this.botName = this.pseudos[1];
         this.log = this.logs[0];
+        const winner = this.overs.slice(0, 2).findIndex((o) => o && o.startsWith("Victoire"));
+        if (kind === "Win" && !this.result) this.result = { winner: winner >= 0 ? winner : null, reason: "duel" };
+    }
+
+    // Récit pour les spectateurs : personne n'est « tu », le joueur qui agit est nommé, les pioches restent cachées.
+    spectate(kind, m, after) {
+        const log = this.logs[WATCH];
+        const name = (p) => this.pseudos[this.seatOf(p)];
+        if (kind === "NewTurn") return log.push({ who: null, text: `Tour ${after.turn} : au tour ${/^[aeiouyhéèêâî]/i.test(name(m.player)) ? "d'" : "de "}${name(m.player)}.`, tone: "turn", turn: after.turn });
+        if (kind === "Win") {
+            this.overs[WATCH] = `${name(m.player)} gagne le duel.`;
+            return log.push({ who: null, text: this.overs[WATCH], tone: "good", turn: this.turn });
+        }
+        const actor = [m.player, m.controller, m.current?.controller, m.previous?.controller, m.attacker?.controller]
+            .find((p) => p === 0 || p === 1);
+        const me = this.me, n = log.length;
+        this.botName = actor === undefined ? "" : name(actor);
+        this.me = -1; this.log = log; this.over = null;
+        try { super.event(kind, m); } finally { this.me = me; }
+        for (const l of log.slice(n)) {
+            if (l.who === null) continue;
+            l.who = "name"; l.name = this.botName;
+            if (l.text.startsWith(`${this.botName} `)) l.text = l.text.slice(this.botName.length + 1);   // « Bob » est déjà le libellé
+        }
     }
 
     swap() { [this.me, this.bot] = [this.bot, this.me]; }
@@ -88,7 +118,9 @@ export class PvpGame extends Game {
         const loser = this.pseudos[seat];
         this.overs[seat] = why === "time" ? "Défaite : temps de réponse écoulé." : "Défaite : tu as abandonné.";
         this.overs[1 - seat] = why === "time" ? `Victoire ! ${loser} n'a pas répondu à temps.` : `Victoire ! ${loser} abandonne.`;
+        this.overs[WATCH] = `${this.pseudos[1 - seat]} gagne : ${loser} ${why === "time" ? "n'a pas répondu à temps" : "abandonne"}.`;
         this.logs.forEach((log, i) => log.push({ who: null, text: this.overs[i], tone: i === seat ? "cut" : "good", turn: this.turn }));
+        this.result = { winner: 1 - seat, reason: why === "time" ? "temps" : "abandon" };
         this.over = this.overs[0];
         this.stopped = true;
         clearTimeout(this.timer);
@@ -106,6 +138,7 @@ export class PvpGame extends Game {
         f.log = this.logs[seat];
         f.over = this.overs[seat];
         hide(f.bot);
+        if (seat === WATCH) hide(f.me);
         return f;
     }
 

@@ -3,7 +3,9 @@
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { checkBanlist } from "./banlist.js";
 import { checkDeck, importYdk, playable } from "./decks.js";
+import { openHistory } from "./history.js";
 import { HttpError, cookies, identityCookie, identityKey, openStream, readJson, sendFile, sendJson, sendText } from "./http.js";
 import { openLibrary } from "./library.js";
 import { limiter } from "./limits.js";
@@ -17,19 +19,27 @@ const CLIENT = [join(WEB, "api.js"), join(WEB, "duel_online.js"), join(SHARED, "
     join(SHARED, "duel_meta_dialogs.js"), join(SHARED, "duel_meta_input.js"), join(WEB, "lobby.js"),
     join(WEB, "collections.js"), join(WEB, "account.js"), join(WEB, "pages.js")];
 // pages du client : toutes servies par index.html, le script choisit selon l'adresse
-const PAGES = /^\/(collections|compte|a-propos|c\/[^/]+)?$/;
+const PAGES = /^\/(collections|compte|a-propos|c\/[^/]+|regarder\/[A-Za-z0-9]+)?$/;
 const MAX_PUBLISH = 8 * 1024 * 1024;
 const MIN = 60e3, HOUR = 3600e3;
 
-// options : dbPath (base SQLite), secure (HTTPS), answerMs (délai de réponse en duel)
-export function createApp(engine, { dbPath, secure = false, answerMs } = {}) {
+// options : dbPath (base SQLite), secure (HTTPS), answerMs (délai de réponse en duel), banlists (loadBanlists),
+// proxy (derrière l'hébergeur, qui donne l'adresse du visiteur dans X-Forwarded-For)
+export function createApp(engine, { dbPath, secure = false, answerMs, banlists = {}, proxy = false } = {}) {
     const store = openStore(dbPath);
     const names = new Map(engine.names);
-    const library = openLibrary(store.db, store, (code) => names.get(code) || "");
-    const rooms = new Rooms(engine, { answerMs });
+    const nameOf = (code) => names.get(code) || "";
+    const library = openLibrary(store.db, store, nameOf);
+    const history = openHistory(store.db);
+    const legal = (deck, key) => {
+        if (key && !banlists[key]) throw new HttpError(400, "Liste des cartes interdites inconnue.");
+        checkBanlist(deck, banlists[key], nameOf);
+    };
+    const rooms = new Rooms(engine, { answerMs, legal,
+        onEnd: (room) => history.record(room.seats, room.game.result, room.game.turn) });
     const knows = (code) => engine.texts.has(code);
     const limit = limiter();
-    const ip = (req) => req.socket.remoteAddress || "?";
+    const ip = (req) => (proxy && String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()) || req.socket.remoteAddress || "?";
 
     const me = (req) => store.playerByKey(identityKey(req));
     const need = (req) => {
@@ -95,10 +105,11 @@ export function createApp(engine, { dbPath, secure = false, answerMs } = {}) {
             const player = need(req), body = await readJson(req);
             limit("duel", player.id, 30, 10 * MIN);
             const deck = pickDeck(player, body);
+            const banlist = typeof body.banlist === "string" ? body.banlist : "";
             const room = body.mode === "join" ? rooms.join(body.code, player, deck)
-                : body.mode === "random" ? rooms.random(player, deck)
-                : body.mode === "invite" ? rooms.invite(player, deck, store.playerByPseudo(body.pseudo))
-                : rooms.create(player, deck);
+                : body.mode === "random" ? rooms.random(player, deck, banlist)
+                : body.mode === "invite" ? rooms.invite(player, deck, store.playerByPseudo(body.pseudo), banlist)
+                : rooms.create(player, deck, { banlist });
             sendJson(res, 200, { code: room.code, status: room.status, warning: deck.warning || "" });
         },
         "POST /api/duel/cancel": (req, res) => { rooms.cancel(need(req)); sendJson(res, 200, { ok: true }); },
@@ -106,10 +117,20 @@ export function createApp(engine, { dbPath, secure = false, answerMs } = {}) {
             rooms.decline(need(req), (await readJson(req)).code);
             sendJson(res, 200, { ok: true });
         },
+        "POST /api/duel/leave": (req, res) => { rooms.leave(need(req)); sendJson(res, 200, { ok: true }); },
         "POST /api/duel/forfeit": (req, res) => { rooms.forfeit(need(req)); sendJson(res, 200, { ok: true }); },
         "POST /api/duel/answer": async (req, res) => {
             rooms.reply(need(req), (await readJson(req)).answer);
             sendJson(res, 200, { ok: true });
+        },
+        "GET /api/banlists": (req, res) => sendJson(res, 200, { banlists: Object.entries(banlists).map(([key, l]) => ({ key, name: l.name })) }),
+        "GET /api/history": (req, res) => sendJson(res, 200, { duels: history.forPlayer(need(req)) }),
+        "GET /api/duels": (req, res) => sendJson(res, 200, { duels: rooms.playing() }),
+        // spectateur : pas besoin d'identité, il ne voit que ce qui est public
+        "GET /api/duel/watch": (req, res) => {
+            const code = new URL(req.url, "http://x").searchParams.get("code");
+            const stop = rooms.watch(code, openStream(req, res));
+            if (stop) req.on("close", stop);
         },
         "GET /api/duel/events": (req, res) => {
             const player = need(req), stream = openStream(req, res);

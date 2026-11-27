@@ -4,7 +4,8 @@
   GPL-2.0 : téléchargés, pas versionnés dans le dépôt), rangés sous script/ comme le moteur les cherche ;
 - cards.cdb : la base de cartes du moteur en français (mycard/ygopro-database), qui donne aussi les textes des
   effets proposés à l'activation ;
-- strings.conf : les messages du moteur en français (« Sélectionnez la carte à ajouter à votre main »…).
+- strings.conf : les messages du moteur en français (« Sélectionnez la carte à ajouter à votre main »…) ;
+- lflist.conf : les listes des cartes interdites et limitées (Fluorohydride/ygopro), pour les duels en ligne.
 
 Le moteur lui-même (YGOPro compilé en WebAssembly, licence MIT) est dans static/engine/, construit depuis engine/.
 
@@ -23,6 +24,7 @@ DATA_DIR = ROOT / "static" / "engine" / "data"
 SCRIPTS_URL = "https://codeload.github.com/Fluorohydride/ygopro-scripts/zip/refs/heads/master"
 CDB_URL = "https://raw.githubusercontent.com/mycard/ygopro-database/master/locales/fr-FR/cards.cdb"
 STRINGS_URL = "https://raw.githubusercontent.com/mycard/ygopro-database/master/locales/fr-FR/strings.conf"
+LFLIST_URL = "https://raw.githubusercontent.com/Fluorohydride/ygopro/master/lflist.conf"
 HEADERS = {"User-Agent": "yugioh-collection-perso/1.0"}
 
 
@@ -52,7 +54,7 @@ def download(log=print) -> int:
                 n += 1
     tmp.replace(DATA_DIR / "script.zip")
     log("Base de cartes du moteur (français)…")
-    for url, name in ((CDB_URL, "cards.cdb"), (STRINGS_URL, "strings.conf")):
+    for url, name in ((CDB_URL, "cards.cdb"), (STRINGS_URL, "strings.conf"), (LFLIST_URL, "lflist.conf")):
         r = requests.get(url, headers=HEADERS, timeout=300)
         r.raise_for_status()
         (DATA_DIR / name).write_bytes(r.content)

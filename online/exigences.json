@@ -1,6 +1,6 @@
 {
   "projet": "Ma collection Yu-Gi-Oh! en ligne",
-  "version": "0.4",
+  "version": "0.5",
   "date": "2026-11-27",
   "branche": "online",
   "objectif": "Partager des collections avec le public ou un public restreint, et jouer des duels de deck contre des adversaires en ligne (au hasard ou choisis), chacun avec son deck personnel, arbitrés par le moteur de règles YGOPro.",
@@ -152,7 +152,8 @@
       "criteres": [
         "Filtre « me manque » basé sur ma propre collection publiée."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Sur la collection d'un autre : « Seulement celles qui me manquent » ou « que j'ai aussi », d'après ma collection publiée (online/web/collections.js)."
     },
     {
       "id": "EX-K1",
@@ -188,8 +189,8 @@
       "criteres": [
         "Option de liste des cartes interdites et limitées en vigueur (P3)."
       ],
-      "statut": "en_cours",
-      "notes": "40 à 60 cartes, Extra 15 max, 3 exemplaires max, cartes inconnues refusées. Reste le critère P3 : liste des interdites et limitées (le moteur n'en fournit pas ; à reporter en J4)."
+      "statut": "fait",
+      "notes": "40 à 60 cartes, Extra 15 max, 3 exemplaires max, cartes inconnues refusées ; liste des interdites au choix (TCG en vigueur par défaut, OCG, ou aucune) à la création du duel, lue dans lflist.conf (Fluorohydride/ygopro). Au hasard, appariement seulement avec la même liste."
     },
     {
       "id": "EX-D1",
@@ -279,7 +280,8 @@
       "criteres": [
         "Le spectateur ne voit que les informations publiques."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Liste « Duels en cours » sur la page Duels et adresse /regarder/<code>, sans identité ; aucune main envoyée, journal à part où chaque joueur est nommé et les pioches restent cachées (pvp.js, siège WATCH)."
     },
     {
       "id": "EX-D8",
@@ -290,7 +292,8 @@
       "criteres": [
         "Visible par les deux joueurs du duel."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Table duels : adversaire, decks, résultat (victoire, défaite, par abandon, temps écoulé), tours, date ; tableau « Mes duels » sur Mon compte."
     },
     {
       "id": "EX-T1",
@@ -317,7 +320,7 @@
         "Pas de JavaScript ni de CSS dans des chaînes Python."
       ],
       "statut": "fait",
-      "notes": "Plus gros fichier : online/server/rooms.js (187 lignes). Routes séparées du démarrage : app.js (routes) et main.js (écoute, HTTPS)."
+      "notes": "Plus gros fichier : online/server/rooms.js (230 lignes). Routes séparées du démarrage : app.js (routes) et main.js (écoute, HTTPS, sauvegardes)."
     },
     {
       "id": "EX-T3",
@@ -343,7 +346,7 @@
         "Lancés par une commande, sans navigateur."
       ],
       "statut": "fait",
-      "notes": "`npm --prefix engine run test-online` : 7 tests sur un serveur neuf (identité, visibilité, .ydk, appariement, invitations, duel complet de plus de 30 tours entre deux joueurs automatiques, temps écoulé, limites), en une vingtaine de secondes."
+      "notes": "`npm --prefix engine run test-online` : 9 tests sur un serveur neuf (identité, visibilité, .ydk, appariement, invitations, duel complet entre deux joueurs automatiques, temps écoulé, limites, liste des interdites, spectateurs et historique)."
     },
     {
       "id": "EX-H1",
@@ -355,7 +358,8 @@
         "Base de données sauvegardée.",
         "Le compte chez l'hébergeur est créé par l'utilisateur lui-même."
       ],
-      "statut": "a_faire"
+      "statut": "en_cours",
+      "notes": "Prêt à déployer : Dockerfile (données du moteur téléchargées à la construction par engine/fetch-data.cjs), mode BEHIND_PROXY=1 (HTTPS de l'hébergeur, cookie Secure, adresse du visiteur pour les limites), sauvegarde de la base au démarrage puis chaque jour (14 gardées), guide online/DEPLOIEMENT.md (exemple Fly.io). Reste à faire par l'utilisateur : créer le compte chez l'hébergeur et déployer. La construction de l'image n'a pas été testée (Docker absent de ce PC)."
     },
     {
       "id": "EX-L1",

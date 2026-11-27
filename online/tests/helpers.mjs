@@ -11,7 +11,7 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), "..", "server", "ou
 // Serveur sur un port libre, base SQLite temporaire ; stop() l'arrête et efface la base.
 export async function startServer(env = {}) {
     const dir = mkdtempSync(join(tmpdir(), "ygo-online-"));
-    const proc = spawn(process.execPath, [SERVER], { env: { ...process.env, PORT: "0", ONLINE_DB: join(dir, "t.sqlite"), ...env } });
+    const proc = spawn(process.execPath, [SERVER], { env: { ...process.env, PORT: "0", ONLINE_DB: join(dir, "t.sqlite"), BACKUP_DIR: join(dir, "b"), ...env } });
     const url = await new Promise((resolve, reject) => {
         let out = "";
         proc.stdout.on("data", (d) => { out += d; const m = /(http:\/\/[^\s]+)/.exec(out); if (m) resolve(m[1]); });
@@ -38,7 +38,7 @@ export async function newPlayer(url, pseudo) {
 }
 
 // Flux d'événements d'un joueur : events[type] = dernière donnée reçue, next(type, test) attend un événement.
-export function stream(url, key) {
+export function stream(url, key, path = "/api/duel/events") {
     const ctrl = new AbortController();
     const last = {}, waiters = [];
     const emit = (type, data) => {
@@ -55,7 +55,7 @@ export function stream(url, key) {
             setTimeout(() => { if (waiters.includes(w)) reject(new Error(`pas d'événement ${type} attendu`)); }, ms).unref();
         }),
     };
-    fetch(url + "/api/duel/events", { headers: { Authorization: `Bearer ${key}` }, signal: ctrl.signal }).then(async (r) => {
+    fetch(url + path, { headers: key ? { Authorization: `Bearer ${key}` } : {}, signal: ctrl.signal }).then(async (r) => {
         const decoder = new TextDecoder();
         let buf = "";
         for await (const chunk of r.body) {

@@ -12,7 +12,7 @@ function cardHTML(root, c, opts = {}) {
     const pos = c.position || 0;
     const down = opts.field && (pos & 10) !== 0;   // face verso (sur le terrain seulement)
     const def = (pos & 12) !== 0;                  // défense
-    const hidden = opts.hidden || (down && opts.foe);
+    const hidden = opts.hidden || (down && opts.foe) || !c.code;   // code 0 : carte cachée par le serveur (en ligne)
     const i = info(root, c.code);
     const can = P && P.kind === "actions" && P.actions.some((a) => a.key === c.key);
     const cls = ["card", hidden || down ? "down" : "", def && opts.loc === LOC.MZONE ? "def" : "", can ? "can" : ""].join(" ");
@@ -58,7 +58,7 @@ function sideHTML(root, who) {
     const hidden = foe && !root.ui.peek;
     const hand = `<div class="hand">${S.hand.filter(Boolean).map((c) => `<div class="slot">${cardHTML(root, c, { hidden, foe })}</div>`).join("")}</div>`;
     const ban = S.removed.filter(Boolean).length;
-    const head = `<div class="who"><span class="name">${esc(foe ? root.data.botName : "Toi")}</span>`
+    const head = `<div class="who"><span class="name">${esc(foe ? root.data.botName : root.data.meName || "Toi")}</span>`
         + `<span class="lp"><span class="bar"><span style="width:${Math.max(0, Math.min(100, 100 * S.lp / 8000)).toFixed(1)}%"></span></span>${Math.max(0, S.lp)} PV</span>`
         + `<span class="sub">${S.hand.filter(Boolean).length} en main</span>`
         + `<button class="chip" data-pile="${who}:${LOC.REMOVED}">Bannies : ${ban}</button></div>`;

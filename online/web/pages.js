@@ -1,6 +1,6 @@
 // Client en ligne, aiguillage des pages selon l'adresse : / (duels), /collections (annuaire), /c/<pseudo>
-// (une collection), /compte (clé, visibilité, amis) et /a-propos (licences). Le pseudo est demandé à la première
-// visite (EX-I1) ; une identité existante se récupère avec sa clé (EX-I3).
+// (une collection), /compte (clé, visibilité, amis, historique), /regarder/<code> (spectateur) et /a-propos
+// (licences). Le pseudo est demandé à la première visite (EX-I1) ; une identité se récupère avec sa clé (EX-I3).
 
 async function boot() {
     const { player } = await api("GET", "/api/me");
@@ -9,6 +9,7 @@ async function boot() {
     document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on",
         a.getAttribute("href") === path || (!!a.dataset.prefix && path.startsWith(a.dataset.prefix))));
     if (path === "/a-propos") return aboutPage();
+    if (path.startsWith("/regarder/")) return watchPage(path.slice(10));
     if (path.startsWith("/c/")) return collectionPage(path.slice(3), player);
     if (path === "/collections") return directoryPage(player);
     if (!player) return pseudoForm();

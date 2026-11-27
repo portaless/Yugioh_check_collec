@@ -66,7 +66,7 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
   du moteur pour l'interface), `bot.js` (l'adversaire), `loader.js`, `texts.js`, `constants.js`.
 - `online/` : la version en ligne (branche `online`, exigences et jalons dans `online/exigences.json`) —
   `server/` (Node.js, sans dépendance en plus du moteur : `main.js` démarrage, `app.js` routes, `http.js`,
-  `limits.js` limites anti-abus, `store.js` identités,
+  `limits.js` limites anti-abus, `store.js` identités, `history.js` historique, `banlist.js` cartes interdites,
   `library.js` collections, decks publiés et amis, `decks.js`, `rooms.js` salons, `pvp.js` duel arbitré entre deux
   joueurs), `tests/` (tests du serveur) et `web/` (pages Duels, Collections, Mon compte et À propos ;
   le client du duel réutilise le plateau de
@@ -93,8 +93,13 @@ droit de voir. Pour tester seul, ouvre un onglet sur `localhost:8600` et un autr
 identités). Chaque joueur a 3 minutes pour répondre quand c'est à lui d'agir, et peut abandonner. Pour retrouver
 son pseudo sur un autre appareil, on y colle sa clé (Mon compte).
 
-Variables : `PORT`, `HOST` (adresse d'écoute), `ONLINE_DB` (base). Hors de ce PC, le serveur exige HTTPS :
-`TLS_CERT` et `TLS_KEY` (fichiers PEM). Tests du serveur, sans navigateur : `npm --prefix engine run test-online`.
+On peut aussi regarder les duels en cours (sans voir les mains), choisir la liste des cartes interdites (TCG, OCG
+ou aucune), retrouver ses duels passés sur Mon compte, et filtrer la collection d'un autre joueur sur les cartes qui
+nous manquent.
+
+Variables : `PORT`, `HOST` (adresse d'écoute), `ONLINE_DB` (base), `BACKUP_DIR` (sauvegardes quotidiennes). Hors de
+ce PC, le serveur exige HTTPS : `TLS_CERT` et `TLS_KEY` (fichiers PEM), ou `BEHIND_PROXY=1` chez un hébergeur.
+Mise en ligne : `Dockerfile` et guide [online/DEPLOIEMENT.md](online/DEPLOIEMENT.md). Tests du serveur, sans navigateur : `npm --prefix engine run test-online`.
 
 ## Moteur d'un deck
 

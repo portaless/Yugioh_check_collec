@@ -13,6 +13,11 @@ function mountDuel(root) {
         imgs: new Proxy({}, { get: (_, code) => (+code ? `${IMG}${code}.jpg` : undefined) }),
     };
     root.game = { me: 0, bot: 1, engine: { texts: new Map() }, undoPoint: () => null };
+    root.addEventListener("click", (e) => {   // « Accueil » après le duel : on le quitte pour revenir aux duels
+        if (!e.target.closest('a[href="/"]') || root.data.meName) return;
+        e.preventDefault();
+        api("POST", "/api/duel/leave").finally(() => listen());
+    });
     root.addEventListener("click", (e) => {   // clic hors d'un menu : on le ferme
         if (root.ui.menu && !e.target.closest(".menu, .effbox")) { root.ui.menu = null; render(root); }
     });
@@ -27,6 +32,7 @@ function duelRoom(root, room) {
     root.game.me = room.player;
     root.game.bot = 1 - room.player;
     root.data.botName = room.opponent || "Adversaire";
+    if (room.watch) root.data.meName = room.me;   // spectateur : le premier joueur est affiché en bas
     root.data.me.extra = room.myExtra || [];
 }
 
