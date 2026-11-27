@@ -6,16 +6,19 @@ import { question } from "../../engine/src/questions.js";
 import { HttpError } from "./http.js";
 
 const FACE_DOWN = 0xA, FACE_UP = 0x5;
+const ANSWER_MS = 3 * 60 * 1000;     // sans réponse dans ce délai quand c'est à lui d'agir, le joueur perd (EX-D6)
 const SHARED = ["turn", "turnPlayer", "phase", "hint", "over", "winner"];
 
 export class PvpGame extends Game {
     // decks[siège] = { main, extra } ; pseudos[siège] ; le siège 0 est le joueur « me » de la partie de base
-    constructor(engine, { decks, pseudos, seed, firstSeat }) {
+    constructor(engine, { decks, pseudos, seed, firstSeat, answerMs = ANSWER_MS }) {
         super(engine, { me: decks[0], bot: decks[1], seed, meFirst: firstSeat === 0, botName: pseudos[1] });
         this.pseudos = pseudos;
         this.logs = [[], []];
         this.overs = [null, null];
-        this.pending = null;                 // question en attente : { seat, q, table, resolve }
+        this.pending = null;                 // question en attente : { seat, q, table, resolve, until }
+        this.answerMs = answerMs;
+        this.timer = null;
         this.hooks = { update() {}, prompt() {} };
         const who = (seat) => (seat === firstSeat ? "tu commences" : `${pseudos[firstSeat]} commence`);
         this.logs.forEach((log, seat) => log.push({ who: null, text: `Pile ou face : ${who(seat)}.`, tone: "turn", turn: 0 }));
@@ -44,9 +47,11 @@ export class PvpGame extends Game {
     swap() { [this.me, this.bot] = [this.bot, this.me]; }
 
     async answer(m) {
+        if (this.stopped) return;           // duel arrêté (abandon, temps écoulé) : plus aucune question
         const seat = this.seatOf(m.responsePlayer());
         const q = question(this, m);
         let response = q ? await this.ask(seat, q) : undefined;
+        if (this.stopped) return;
         if (!response) response = m.defaultResponse ? m.defaultResponse() : m.prepareResponse(null);
         this.duel.setResponse(response);
     }
@@ -54,7 +59,10 @@ export class PvpGame extends Game {
     ask(seat, q) {
         return new Promise((resolve) => {
             const table = [];
-            this.pending = { seat, q, table, resolve, sent: encode(q, table) };
+            this.asked = (this.asked || 0) + 1;   // numéro de la question : une réponse ne sert qu'une fois
+            this.pending = { seat, q, table, resolve, sent: { ...encode(q, table), id: this.asked }, until: Date.now() + this.answerMs };
+            this.timer = setTimeout(() => this.forfeit(seat, "time"), this.answerMs);
+            this.timer.unref?.();
             this.hooks.prompt(seat);
         });
     }
@@ -70,7 +78,24 @@ export class PvpGame extends Game {
         }
         if (!response) throw new HttpError(400, "Réponse inconnue.");
         this.pending = null;
+        clearTimeout(this.timer);
         P.resolve(response);
+    }
+
+    // Fin du duel sans le moteur : abandon volontaire ou temps de réponse écoulé (EX-D6).
+    forfeit(seat, why) {
+        if (this.overs[0] || this.stopped) return;
+        const loser = this.pseudos[seat];
+        this.overs[seat] = why === "time" ? "Défaite : temps de réponse écoulé." : "Défaite : tu as abandonné.";
+        this.overs[1 - seat] = why === "time" ? `Victoire ! ${loser} n'a pas répondu à temps.` : `Victoire ! ${loser} abandonne.`;
+        this.logs.forEach((log, i) => log.push({ who: null, text: this.overs[i], tone: i === seat ? "cut" : "good", turn: this.turn }));
+        this.over = this.overs[0];
+        this.stopped = true;
+        clearTimeout(this.timer);
+        const P = this.pending;
+        this.pending = null;
+        if (P) P.resolve(null);
+        this.hooks.update();
     }
 
     // Ce qu'un joueur voit : le terrain de son point de vue, sans les cartes cachées de l'adversaire.

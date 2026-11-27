@@ -74,6 +74,7 @@ export function cookies(req) {
 }
 
 // Cookie d'identité : illisible par le JavaScript de la page, envoyé seulement par ce site (EX-I1).
-export function identityCookie(key) {
-    return `ygo_key=${encodeURIComponent(key)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * 400}`;
+// secure : serveur en HTTPS, le cookie ne circule alors jamais en clair.
+export function identityCookie(key, secure = false) {
+    return `ygo_key=${encodeURIComponent(key)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * 400}${secure ? "; Secure" : ""}`;
 }

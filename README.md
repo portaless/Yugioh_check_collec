@@ -65,9 +65,11 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
 - `engine/src/` : le moteur de règles du duel côté navigateur — `game.js` (la partie), `questions.js` (questions
   du moteur pour l'interface), `bot.js` (l'adversaire), `loader.js`, `texts.js`, `constants.js`.
 - `online/` : la version en ligne (branche `online`, exigences et jalons dans `online/exigences.json`) —
-  `server/` (Node.js, sans dépendance en plus du moteur : `main.js` routes, `http.js`, `store.js` identités,
+  `server/` (Node.js, sans dépendance en plus du moteur : `main.js` démarrage, `app.js` routes, `http.js`,
+  `limits.js` limites anti-abus, `store.js` identités,
   `library.js` collections, decks publiés et amis, `decks.js`, `rooms.js` salons, `pvp.js` duel arbitré entre deux
-  joueurs) et `web/` (pages Duels, Collections et Mon compte ; le client du duel réutilise le plateau de
+  joueurs), `tests/` (tests du serveur) et `web/` (pages Duels, Collections, Mon compte et À propos ;
+  le client du duel réutilise le plateau de
   `ygo/ui/web/duel_meta_*`). Côté appli : `ygo/online.py` et la page `ygo/ui/online.py` publient collection et decks.
 - `ygo/viewer.html` : visionneuse de cartes exécutée dans le navigateur.
 - `.streamlit/config.toml` : thème (bleu nuit et or, Cinzel / Inter).
@@ -85,10 +87,14 @@ Puis http://127.0.0.1:8600 : choisis un pseudo (pas de mot de passe, ton navigat
 decks (la clé est gardée dans `data/online.json`, non versionné). Ta collection est publique, réservée à tes amis
 (pseudos ajoutés sur Mon compte) ou privée ; on la consulte sur `/c/<pseudo>`, et l'annuaire est sur `/collections`.
 
-Pour un duel, choisis un de tes decks publiés ou colle un deck `.ydk`, puis crée un duel (un code à donner à ton adversaire), rejoins-en un avec son code
+Pour un duel, choisis un de tes decks publiés ou un fichier `.ydk`, puis défie un joueur par son pseudo, crée un duel (un code à donner à ton adversaire), rejoins-en un avec son code
 ou cherche un adversaire au hasard. Le serveur arbitre le duel avec le moteur YGOPro : chacun ne voit que ce qu'il a le
 droit de voir. Pour tester seul, ouvre un onglet sur `localhost:8600` et un autre sur `127.0.0.1:8600` (deux
-identités). Variables `PORT` et `HOST` pour changer l'adresse d'écoute.
+identités). Chaque joueur a 3 minutes pour répondre quand c'est à lui d'agir, et peut abandonner. Pour retrouver
+son pseudo sur un autre appareil, on y colle sa clé (Mon compte).
+
+Variables : `PORT`, `HOST` (adresse d'écoute), `ONLINE_DB` (base). Hors de ce PC, le serveur exige HTTPS :
+`TLS_CERT` et `TLS_KEY` (fichiers PEM). Tests du serveur, sans navigateur : `cd engine && npm run test-online`.
 
 ## Moteur d'un deck
 

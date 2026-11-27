@@ -1,6 +1,6 @@
 {
   "projet": "Ma collection Yu-Gi-Oh! en ligne",
-  "version": "0.3",
+  "version": "0.4",
   "date": "2026-11-27",
   "branche": "online",
   "objectif": "Partager des collections avec le public ou un public restreint, et jouer des duels de deck contre des adversaires en ligne (au hasard ou choisis), chacun avec son deck personnel, arbitrés par le moteur de règles YGOPro.",
@@ -86,7 +86,8 @@
       "criteres": [
         "L'import d'une clé valide redonne le même pseudo et les mêmes collections."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Clé affichée et copiable sur « Mon compte » ; « Tu as déjà un pseudo sur un autre appareil ? » (et « Utiliser une autre identité ») la recolle : POST /api/login pose le cookie. Tentatives limitées par adresse."
     },
     {
       "id": "EX-C1",
@@ -175,8 +176,8 @@
       "criteres": [
         "Les cartes inconnues du moteur sont signalées et le deck est refusé s'il devient illégal."
       ],
-      "statut": "en_cours",
-      "notes": "Collage d'un .ydk dans l'accueil fait ; chargement d'un fichier à faire."
+      "statut": "fait",
+      "notes": "Fichier .ydk choisi ou contenu collé ; cartes inconnues retirées et signalées (avertissement affiché), deck refusé seulement s'il ne respecte plus les règles (online/server/decks.js, importYdk)."
     },
     {
       "id": "EX-K3",
@@ -188,7 +189,7 @@
         "Option de liste des cartes interdites et limitées en vigueur (P3)."
       ],
       "statut": "en_cours",
-      "notes": "40 à 60 cartes, Extra 15 max, 3 exemplaires max, cartes inconnues refusées ; liste des interdites à faire."
+      "notes": "40 à 60 cartes, Extra 15 max, 3 exemplaires max, cartes inconnues refusées. Reste le critère P3 : liste des interdites et limitées (le moteur n'en fournit pas ; à reporter en J4)."
     },
     {
       "id": "EX-D1",
@@ -225,7 +226,8 @@
       "criteres": [
         "Une invitation non acceptée expire au bout de 5 minutes."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "« Défier un joueur » par pseudo ; l'invité voit l'invitation sur sa page Duels (flux d'événements), l'accepte avec son deck ou la refuse (l'invitant est prévenu) ; expiration 5 min ; personne d'autre ne peut prendre l'invitation. L'invité doit être sur la page Duels pour la voir."
     },
     {
       "id": "EX-D4",
@@ -265,7 +267,8 @@
         "Abandon volontaire possible à tout moment.",
         "Défaite après 3 minutes sans réponse quand c'est à lui d'agir."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Reconnexion déjà faite en J1 ; bouton « Abandonner » (confirmation en deux clics) ; 3 minutes par question, compte à rebours visible des deux joueurs, défaite « temps de réponse écoulé » (online/server/pvp.js, forfeit)."
     },
     {
       "id": "EX-D7",
@@ -314,7 +317,7 @@
         "Pas de JavaScript ni de CSS dans des chaînes Python."
       ],
       "statut": "fait",
-      "notes": "Plus gros fichier du serveur : rooms.js (143 lignes) ; client web : collections.js (environ 100 lignes)."
+      "notes": "Plus gros fichier : online/server/rooms.js (187 lignes). Routes séparées du démarrage : app.js (routes) et main.js (écoute, HTTPS)."
     },
     {
       "id": "EX-T3",
@@ -327,7 +330,8 @@
         "Pseudos et noms de decks échappés à l'affichage.",
         "HTTPS obligatoire dès que le serveur est accessible depuis internet."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Requêtes de 256 Ko max (8 Mo pour une publication) ; limites par identité ou adresse : 10 pseudos/h, 10 connexions par clé/10 min, 20 publications/h, 30 duels/10 min, 60 changements d'amis/h (limits.js) ; pseudos et noms échappés ; hors de 127.0.0.1 le serveur refuse de démarrer sans TLS_CERT/TLS_KEY, et le cookie passe en Secure en HTTPS."
     },
     {
       "id": "EX-T4",
@@ -338,7 +342,8 @@
       "criteres": [
         "Lancés par une commande, sans navigateur."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "`cd engine && npm run test-online` : 7 tests sur un serveur neuf (identité, visibilité, .ydk, appariement, invitations, duel complet de plus de 30 tours entre deux joueurs automatiques, temps écoulé, limites), en une vingtaine de secondes."
     },
     {
       "id": "EX-H1",
@@ -362,7 +367,8 @@
         "Page « À propos » avec les licences et les liens vers les sources.",
         "Illustrations chargées depuis YGOPRODeck, sans les rediffuser."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Page /a-propos (lien en pied de page) : moteur (koishipro-core.js, MIT), scripts ygopro-scripts sous GPL-2.0 avec lien vers leur source, textes mycard/ygopro-database, illustrations chargées depuis YGOPRODeck sans être rediffusées."
     }
   ],
   "jalons": [

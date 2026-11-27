@@ -1,5 +1,5 @@
-// Client en ligne, page Mon compte : clé à copier dans l'appli locale (EX-I2), collection et decks publiés,
-// visibilité (EX-C2) et amis autorisés à voir une collection « Amis » (EX-C3).
+// Client en ligne, page Mon compte : clé à copier dans l'appli locale ou sur un autre appareil (EX-I2, EX-I3),
+// collection et decks publiés, visibilité (EX-C2) et amis autorisés à voir une collection « Amis » (EX-C3).
 
 async function accountPage(player, notice = "") {
     const mine = await api("GET", "/api/mine");
@@ -12,7 +12,8 @@ async function accountPage(player, notice = "") {
     app.innerHTML = `<p class="err">${esc(notice)}</p>
       <section class="grid2">
         <div class="card"><h2>Ma clé</h2>
-          <p class="mute">Colle-la dans l'appli, page <b>Partage en ligne</b>, pour publier ta collection et tes decks à ton nom.
+          <p class="mute">Colle-la dans l'appli, page <b>Partage en ligne</b>, pour publier ta collection et tes decks à ton nom,
+          ou sur un autre appareil pour y retrouver ton pseudo.
           Ne la donne à personne : elle permet d'agir en ton nom.</p>
           <div class="row"><input id="key" type="password" readonly placeholder="Clé masquée">
           <button id="showkey">Afficher</button><button id="copykey">Copier</button></div></div>
@@ -29,7 +30,9 @@ async function accountPage(player, notice = "") {
           <p class="mute">Ils voient ta collection quand elle est réglée sur « Amis ». En retirer un lui coupe l'accès aussitôt.</p>
           <form id="addf"><input name="pseudo" maxlength="24" placeholder="Pseudo d'un joueur"><button>Ajouter</button></form>
           ${friends ? `<ul class="friends">${friends}</ul>` : `<p class="mute">Personne pour l'instant.</p>`}</div>
-      </section>`;
+      </section>
+      <section class="card">${loginHTML("Utiliser une autre identité (clé d'un autre appareil)")}</section>`;
+    loginForm();
 
     const key = app.querySelector("#key");
     const loadKey = async () => { if (!key.value) key.value = (await api("GET", "/api/key")).key || ""; };

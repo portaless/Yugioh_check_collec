@@ -29,6 +29,19 @@ export function checkDeck(deck, knows) {
     return { name: String(deck.name || "Deck").slice(0, 60), main: [...main], extra: [...extra] };
 }
 
+// Deck importé (EX-K2) : les cartes inconnues du moteur sont retirées et signalées ; le deck n'est refusé que s'il
+// ne respecte plus les règles sans elles.
+export function importYdk(text, knows) {
+    const deck = parseYdk(text);
+    const unknown = [...new Set([...deck.main, ...deck.extra].filter((c) => !knows(c)))];
+    deck.main = deck.main.filter(knows);
+    deck.extra = deck.extra.filter(knows);
+    if (!deck.main.length && !deck.extra.length) throw new HttpError(400, "Aucune carte reconnue : est-ce bien un fichier .ydk ?");
+    const checked = checkDeck(deck, knows);
+    if (unknown.length) checked.warning = `Cartes inconnues du moteur, retirées du deck : ${unknown.slice(0, 10).join(", ")}${unknown.length > 10 ? "…" : ""}.`;
+    return checked;
+}
+
 // Le deck respecte-t-il les règles de base, sans lever d'erreur (liste des decks jouables) ?
 export function playable(deck, knows) {
     try { checkDeck(deck, knows); return true; } catch { return false; }

@@ -4,7 +4,8 @@
   "description": "Moteur de règles du duel (YGOPro en WebAssembly) : duel local et serveur des duels en ligne",
   "scripts": {
     "build": "esbuild src/engine.js --bundle --format=esm --platform=browser --outfile=../static/engine/engine.js --external:fs --external:path --external:url --external:module --external:crypto --external:node:fs --external:node:path --external:node:url --external:node:module --external:node:crypto --log-level=warning && node copy-wasm.cjs",
-    "online": "node build-online.cjs && node ../online/server/out.cjs"
+    "online": "node build-online.cjs && node ../online/server/out.cjs",
+    "test-online": "node build-online.cjs && node --test ../online/tests/server.test.mjs"
   },
   "dependencies": {
     "koishipro-core.js": "^1.5.6",
