@@ -1,5 +1,5 @@
 // Démarrage du serveur en ligne : charge le moteur, puis écoute en HTTP sur ce PC, ou en HTTPS (EX-T3).
-// Lancement : `cd engine && npm run online` (http://127.0.0.1:8600).
+// Lancement : `npm --prefix engine run online` (http://127.0.0.1:8600).
 // Variables : PORT, HOST (adresse d'écoute), ONLINE_DB (base SQLite), TLS_CERT et TLS_KEY (fichiers PEM du certificat).
 // Hors de ce PC (HOST autre que 127.0.0.1, localhost ou ::1), le serveur refuse de démarrer sans certificat.
 import { readFileSync } from "fs";

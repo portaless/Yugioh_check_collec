@@ -16,7 +16,7 @@ def page_online():
     config = O.load_config()
 
     with st.expander("Connexion à l'appli en ligne", expanded=not config["key"]):
-        st.markdown("1. Lance le serveur : `cd engine && npm run online`.\n"
+        st.markdown("1. Lance le serveur : `npm --prefix engine run online`.\n"
                     "2. Ouvre l'appli en ligne, choisis un pseudo, puis page **Mon compte**, copie ta clé.\n"
                     "3. Colle-la ici. Elle est gardée dans `data/online.json`, jamais dans le code.")
         with st.form("online_login", border=False):

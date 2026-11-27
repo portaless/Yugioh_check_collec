@@ -41,7 +41,7 @@ def _call(config: dict, method: str, path: str, body: dict | None = None) -> dic
         r = requests.request(method, config["server"] + path, json=body, timeout=30,
                              headers={"Authorization": f"Bearer {config['key']}"})
     except requests.RequestException:
-        raise OnlineError(f"Serveur injoignable ({config['server']}). Lance-le avec « cd engine && npm run online ».")
+        raise OnlineError(f"Serveur injoignable ({config['server']}). Lance-le avec « npm --prefix engine run online ».")
     if r.status_code == 401:
         raise OnlineError("Clé refusée : recopie-la depuis la page « Mon compte » de l'appli en ligne.")
     try:

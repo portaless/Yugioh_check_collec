@@ -1,6 +1,6 @@
 // Tests du serveur en ligne (EX-T4), sans navigateur : identité, visibilité des collections, appariement, invitations,
 // un duel complet joué par deux joueurs automatiques, abandon et temps de réponse écoulé.
-// Lancement : `cd engine && npm run test-online` (compile le serveur puis lance ces tests).
+// Lancement : `npm --prefix engine run test-online` (compile le serveur puis lance ces tests).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { autoPlay, client, newPlayer, startServer, stream } from "./helpers.mjs";

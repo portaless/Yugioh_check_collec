@@ -94,7 +94,7 @@ identités). Chaque joueur a 3 minutes pour répondre quand c'est à lui d'agir,
 son pseudo sur un autre appareil, on y colle sa clé (Mon compte).
 
 Variables : `PORT`, `HOST` (adresse d'écoute), `ONLINE_DB` (base). Hors de ce PC, le serveur exige HTTPS :
-`TLS_CERT` et `TLS_KEY` (fichiers PEM). Tests du serveur, sans navigateur : `cd engine && npm run test-online`.
+`TLS_CERT` et `TLS_KEY` (fichiers PEM). Tests du serveur, sans navigateur : `npm --prefix engine run test-online`.
 
 ## Moteur d'un deck
 

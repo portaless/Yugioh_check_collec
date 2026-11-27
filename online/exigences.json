@@ -303,7 +303,7 @@
         "Le serveur réutilise les données du moteur déjà téléchargées (static/engine/data)."
       ],
       "statut": "fait",
-      "notes": "`cd engine && npm run online`, puis http://127.0.0.1:8600 ; deux joueurs sur un PC : un onglet sur localhost, l'autre sur 127.0.0.1."
+      "notes": "`npm --prefix engine run online`, puis http://127.0.0.1:8600 ; deux joueurs sur un PC : un onglet sur localhost, l'autre sur 127.0.0.1."
     },
     {
       "id": "EX-T2",
@@ -343,7 +343,7 @@
         "Lancés par une commande, sans navigateur."
       ],
       "statut": "fait",
-      "notes": "`cd engine && npm run test-online` : 7 tests sur un serveur neuf (identité, visibilité, .ydk, appariement, invitations, duel complet de plus de 30 tours entre deux joueurs automatiques, temps écoulé, limites), en une vingtaine de secondes."
+      "notes": "`npm --prefix engine run test-online` : 7 tests sur un serveur neuf (identité, visibilité, .ydk, appariement, invitations, duel complet de plus de 30 tours entre deux joueurs automatiques, temps écoulé, limites), en une vingtaine de secondes."
     },
     {
       "id": "EX-H1",
