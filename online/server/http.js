@@ -2,7 +2,7 @@
 import { readFileSync, statSync } from "fs";
 import { extname } from "path";
 
-const MAX_BODY = 256 * 1024;   // une collection publiée tient largement dans 256 Ko (EX-T3)
+const MAX_BODY = 256 * 1024;   // requêtes ordinaires ; la publication d'une collection a droit à plus (EX-T3)
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml" };
 
@@ -10,13 +10,13 @@ export class HttpError extends Error {
     constructor(status, message) { super(message); this.status = status; }
 }
 
-export function readJson(req) {
+export function readJson(req, max = MAX_BODY) {
     return new Promise((resolve, reject) => {
         let size = 0;
         const chunks = [];
         req.on("data", (c) => {
             size += c.length;
-            if (size > MAX_BODY) { reject(new HttpError(413, "Requête trop grande.")); req.destroy(); return; }
+            if (size > max) { reject(new HttpError(413, "Requête trop grande.")); req.destroy(); return; }
             chunks.push(c);
         });
         req.on("end", () => {
@@ -56,6 +56,12 @@ export function openStream(req, res) {
     };
     req.on("close", () => { stream.closed = true; clearInterval(ping); });
     return stream;
+}
+
+// Clé d'identité : cookie du navigateur, ou en-tête « Authorization: Bearer » pour l'appli locale (EX-I2).
+export function identityKey(req) {
+    const auth = /^Bearer\s+(\S+)$/.exec(req.headers.authorization || "");
+    return auth ? auth[1] : cookies(req).ygo_key;
 }
 
 export function cookies(req) {

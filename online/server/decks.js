@@ -1,24 +1,6 @@
-// Decks jouables en ligne : ceux de l'appli locale de ce PC (jalon J1, avant la publication du jalon J2) et ceux
-// collés au format .ydk, le format des simulateurs (#main, #extra, !side, un code de carte par ligne).
-import { existsSync } from "fs";
-import { DatabaseSync } from "node:sqlite";
+// Decks jouables en ligne : ceux publiés depuis l'appli locale (library.js) et ceux collés au format .ydk, le format
+// des simulateurs (#main, #extra, !side, un code de carte par ligne).
 import { HttpError } from "./http.js";
-
-export function localDecks(dbPath) {
-    if (!existsSync(dbPath)) return [];
-    const db = new DatabaseSync(dbPath, { readOnly: true });
-    try {
-        const rows = db.prepare(`SELECT d.name, dc.card_id, dc.zone, dc.quantity FROM decks d
-                                 JOIN deck_cards dc ON dc.deck_id = d.id ORDER BY d.name`).all();
-        const decks = new Map();
-        for (const r of rows) {
-            if (!decks.has(r.name)) decks.set(r.name, { name: r.name, main: [], extra: [] });
-            const d = decks.get(r.name);
-            if (r.zone === "main" || r.zone === "extra") for (let i = 0; i < r.quantity; i++) d[r.zone].push(Number(r.card_id));
-        }
-        return [...decks.values()];
-    } finally { db.close(); }
-}
 
 export function parseYdk(text) {
     const deck = { name: "Deck importé", main: [], extra: [] };
@@ -45,4 +27,9 @@ export function checkDeck(deck, knows) {
     const unknown = [...count.keys()].filter((c) => !knows(c));
     if (unknown.length) throw new HttpError(400, `Cartes inconnues du moteur : ${unknown.slice(0, 10).join(", ")}.`);
     return { name: String(deck.name || "Deck").slice(0, 60), main: [...main], extra: [...extra] };
+}
+
+// Le deck respecte-t-il les règles de base, sans lever d'erreur (liste des decks jouables) ?
+export function playable(deck, knows) {
+    try { checkDeck(deck, knows); return true; } catch { return false; }
 }

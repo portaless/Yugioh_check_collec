@@ -18,6 +18,7 @@ from ygo.ui.duel import page_duel  # noqa: E402
 from ygo.ui.duel_meta import page_duel_meta  # noqa: E402
 from ygo.ui.generator import page_generator  # noqa: E402
 from ygo.ui.meta_sim import page_meta  # noqa: E402
+from ygo.ui.online import page_online  # noqa: E402
 from ygo.ui.saisie import page_saisie  # noqa: E402
 from ygo.ui.style import apply_style, page_header  # noqa: E402
 
@@ -44,6 +45,7 @@ pages = {
         st.Page(page_saisie, title="Saisir ma collection", icon=":material/add_box:", url_path="saisie"),
         st.Page(page_builder, title="Constructeur de deck", icon=":material/construction:", url_path="constructeur"),
         st.Page(page_bourse, title="Bourse", icon=":material/trending_up:", url_path="bourse"),
+        st.Page(page_online, title="Partage en ligne", icon=":material/share:", url_path="en-ligne"),
     ],
     "Analyse": [
         st.Page(page_analysis, title="Analyse", icon=":material/insights:", url_path="analyse"),

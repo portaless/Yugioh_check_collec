@@ -66,21 +66,26 @@ Tests : `.venv\Scripts\python.exe -m pytest` (les tests de pages sont ignorés t
   du moteur pour l'interface), `bot.js` (l'adversaire), `loader.js`, `texts.js`, `constants.js`.
 - `online/` : la version en ligne (branche `online`, exigences et jalons dans `online/exigences.json`) —
   `server/` (Node.js, sans dépendance en plus du moteur : `main.js` routes, `http.js`, `store.js` identités,
-  `decks.js`, `rooms.js` salons, `pvp.js` duel arbitré entre deux joueurs) et `web/` (accueil et client du duel,
-  qui réutilise le plateau de `ygo/ui/web/duel_meta_*`).
+  `library.js` collections, decks publiés et amis, `decks.js`, `rooms.js` salons, `pvp.js` duel arbitré entre deux
+  joueurs) et `web/` (pages Duels, Collections et Mon compte ; le client du duel réutilise le plateau de
+  `ygo/ui/web/duel_meta_*`). Côté appli : `ygo/online.py` et la page `ygo/ui/online.py` publient collection et decks.
 - `ygo/viewer.html` : visionneuse de cartes exécutée dans le navigateur.
 - `.streamlit/config.toml` : thème (bleu nuit et or, Cinzel / Inter).
 - `tests/` : tests unitaires sur une base autonome + rendu de chaque page.
 
-## Duels en ligne (en développement)
+## Collections et duels en ligne (en développement)
 
 ```
 cd engine
 npm run online
 ```
 
-Puis http://127.0.0.1:8600 : choisis un pseudo (pas de mot de passe, ton navigateur garde une clé), un deck de
-l'appli ou un deck `.ydk` collé, puis crée un duel (un code à donner à ton adversaire), rejoins-en un avec son code
+Puis http://127.0.0.1:8600 : choisis un pseudo (pas de mot de passe, ton navigateur garde une clé). Sur
+**Mon compte**, copie ta clé et colle-la dans l'appli, page **Partage en ligne** : elle publie ta collection et tes
+decks (la clé est gardée dans `data/online.json`, non versionné). Ta collection est publique, réservée à tes amis
+(pseudos ajoutés sur Mon compte) ou privée ; on la consulte sur `/c/<pseudo>`, et l'annuaire est sur `/collections`.
+
+Pour un duel, choisis un de tes decks publiés ou colle un deck `.ydk`, puis crée un duel (un code à donner à ton adversaire), rejoins-en un avec son code
 ou cherche un adversaire au hasard. Le serveur arbitre le duel avec le moteur YGOPro : chacun ne voit que ce qu'il a le
 droit de voir. Pour tester seul, ouvre un onglet sur `localhost:8600` et un autre sur `127.0.0.1:8600` (deux
 identités). Variables `PORT` et `HOST` pour changer l'adresse d'écoute.

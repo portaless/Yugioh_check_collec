@@ -1,5 +1,5 @@
-// Stockage du serveur (SQLite intégré à Node) : identités des joueurs. Les collections et decks publiés (jalon J2)
-// s'ajouteront ici.
+// Stockage du serveur (SQLite intégré à Node) : identités des joueurs. Les collections, decks et amis sont dans
+// library.js, sur la même base.
 import { createHash, randomBytes } from "crypto";
 import { mkdirSync } from "fs";
 import { dirname } from "path";
@@ -28,9 +28,14 @@ export function openStore(path) {
             const { lastInsertRowid } = db.prepare("INSERT INTO players (pseudo, key_hash) VALUES (?, ?)").run(pseudo, hash(key));
             return { player: { id: Number(lastInsertRowid), pseudo }, key };
         },
+        db,
         playerByKey(key) {
             if (!key) return null;
             const row = db.prepare("SELECT id, pseudo FROM players WHERE key_hash = ?").get(hash(key));
+            return row ? { id: Number(row.id), pseudo: row.pseudo } : null;
+        },
+        playerByPseudo(pseudo) {
+            const row = db.prepare("SELECT id, pseudo FROM players WHERE pseudo = ?").get(String(pseudo || "").trim());
             return row ? { id: Number(row.id), pseudo: row.pseudo } : null;
         },
         close() { db.close(); },

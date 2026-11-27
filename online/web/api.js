@@ -1,5 +1,8 @@
 // Client en ligne, partie échanges avec le serveur. Ce fichier, duel_online.js, le plateau partagé
-// (ygo/ui/web/duel_meta_*.js) et lobby.js sont assemblés en un seul script par le serveur (/app.js).
+// (ygo/ui/web/duel_meta_*.js) et les pages (lobby.js, collections.js, account.js, pages.js) sont assemblés en un seul
+// script par le serveur (/app.js).
+
+const app = document.getElementById("app");
 
 async function api(method, path, body) {
     const r = await fetch(path, {
@@ -16,3 +19,6 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const LOC = { DECK: 1, HAND: 2, MZONE: 4, SZONE: 8, GRAVE: 16, REMOVED: 32, EXTRA: 64 };
 const PILES = { 1: "Deck", 16: "Cimetière", 32: "Bannies", 64: "Extra Deck", 2: "Main" };
+const IMG_SMALL = "https://images.ygoprodeck.com/images/cards_small/";
+const euros = (v) => `${(+v || 0).toFixed(2).replace(".", ",")} €`;
+const VISIBILITY = { public: "Publique", friends: "Amis", private: "Privée" };

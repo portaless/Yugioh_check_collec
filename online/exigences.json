@@ -1,7 +1,7 @@
 {
   "projet": "Ma collection Yu-Gi-Oh! en ligne",
-  "version": "0.2",
-  "date": "2026-11-26",
+  "version": "0.3",
+  "date": "2026-11-27",
   "branche": "online",
   "objectif": "Partager des collections avec le public ou un public restreint, et jouer des duels de deck contre des adversaires en ligne (au hasard ou choisis), chacun avec son deck personnel, arbitrés par le moteur de règles YGOPro.",
   "legende": {
@@ -74,7 +74,8 @@
         "La clé est enregistrée dans data/ (fichier ignoré par git), jamais dans le code.",
         "Une clé invalide donne un message clair, sans rien publier."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Page « Partage en ligne » de l'appli : clé collée et vérifiée auprès du serveur avant d'être gardée dans data/online.json ; clé refusée ou serveur absent : message clair, rien d'enregistré. La clé est copiable depuis la page « Mon compte » en ligne."
     },
     {
       "id": "EX-I3",
@@ -97,7 +98,8 @@
         "La publication remplace la version précédente et affiche sa date.",
         "Les zones de stock (feuilles de l'Excel) sont publiées seulement si le joueur le coche."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Bouton « Publier » : cartes, quantités, raretés, valeur Cardmarket ; emplacements seulement si la case est cochée. Date de publication affichée (ygo/online.py, online/server/library.js)."
     },
     {
       "id": "EX-C2",
@@ -111,7 +113,8 @@
         "Privée : visible seulement par le propriétaire.",
         "Un visiteur non autorisé reçoit « collection introuvable », sans savoir si elle existe."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Visibilité choisie à la publication ou sur « Mon compte » ; réponse « Collection introuvable. » identique qu'elle soit absente ou cachée."
     },
     {
       "id": "EX-C3",
@@ -122,7 +125,8 @@
       "criteres": [
         "Le retrait d'un ami lui coupe l'accès immédiatement."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Ajout et retrait par pseudo sur « Mon compte » ; l'accès est vérifié à chaque requête, donc coupé aussitôt."
     },
     {
       "id": "EX-C4",
@@ -135,7 +139,8 @@
         "Annuaire des collections publiques.",
         "Textes en français, dans la DA bleu nuit et or, sans emoji."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "/collections (annuaire : publiques, la mienne, celles partagées avec moi) et /c/<pseudo> : galerie, recherche, filtres catégorie, rareté et emplacement, tri, exemplaires et valeur."
     },
     {
       "id": "EX-C5",
@@ -158,7 +163,8 @@
         "Seuls les decks d'au moins 40 cartes en Main Deck sont jouables en ligne.",
         "Un deck publié peut être privé (sert seulement à jouer) ou visible avec la collection."
       ],
-      "statut": "a_faire"
+      "statut": "fait",
+      "notes": "Decks du Constructeur et builds enregistrés du Générateur (même table) ; Side Deck non publié ; chaque deck sert à jouer, et peut en plus être visible avec la collection. Le lobby des duels propose les decks publiés (les decks hors règles y sont grisés)."
     },
     {
       "id": "EX-K2",
@@ -308,7 +314,7 @@
         "Pas de JavaScript ni de CSS dans des chaînes Python."
       ],
       "statut": "fait",
-      "notes": "Plus gros fichier du serveur : rooms.js (environ 150 lignes)."
+      "notes": "Plus gros fichier du serveur : rooms.js (143 lignes) ; client web : collections.js (environ 100 lignes)."
     },
     {
       "id": "EX-T3",
